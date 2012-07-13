@@ -2,8 +2,12 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <queue>
 #include <algorithm>
 using namespace std;
+static const int INF = 10000000;
+static const int dx[] = {-1, 1, 0, 0, 0, 0};
+static const int dy[] = {0, 0, -1, 1, 0, 0};
 
 struct pos
 {
@@ -68,6 +72,9 @@ ostream& operator<<(ostream& os, const result& r)
   return os << "<result move=" << r.move << ", score=" << r.score << ">";
 }
 
+static const int INVALID_MOVE = -1;
+static const int NO_DIFFERENCE = -2;
+
 struct grid
 {
   int H, W;
@@ -114,8 +121,6 @@ struct grid
   int move(move_type m)
   {
     const int i = static_cast<int>(m);
-    static const int dx[] = {-1, 1, 0, 0, 0, 0};
-    static const int dy[] = {0, 0, -1, 1, 0, 0};
     robot.x += dx[i];
     robot.y += dy[i];
     if (valid(m)) {
@@ -123,7 +128,11 @@ struct grid
       if (v[robot.y][robot.x] == '\\') {
         score = 25;
       }
-      update();
+      const int cnt = update();
+      if (m == WAIT && cnt == 0) {
+        // meaningless wait
+        return NO_DIFFERENCE;
+      }
       if (v[robot.y][robot.x] == 'O') {
         score = 50;
         winning = true;
@@ -131,7 +140,7 @@ struct grid
       v[robot.y][robot.x] = ' ';
       return score;
     } else {
-      return -1;
+      return INVALID_MOVE;
     }
   }
 
@@ -154,10 +163,11 @@ struct grid
     }
   }
 
-  void update()
+  int update()
   {
     vector<string> old(v);
     bool lambda_exists = false;
+    int cnt = 0;
     for (int y = 0; y < H; y++) {
       for (int x = 0; x < W; x++) {
         if (old[y][x] == '\\') {
@@ -170,6 +180,7 @@ struct grid
         if (empty(old[y-1][x], pos(x, y-1))) {
           v[y][x] = ' ';
           v[y-1][x] = '*';
+          ++cnt;
           if (robot == pos(x, y-2)) {
             losing = true;
           }
@@ -178,6 +189,7 @@ struct grid
             && empty(old[y-1][x+1], pos(x+1, y-1))) {
           v[y][x] = ' ';
           v[y-1][x+1] = '*';
+          ++cnt;
           if (robot == pos(x+1, y-2)) {
             losing = true;
           }
@@ -186,6 +198,7 @@ struct grid
             && empty(old[y-1][x-1], pos(x-1, y-1))) {
           v[y][x] = ' ';
           v[y-1][x-1] = '*';
+          ++cnt;
           if (robot == pos(x-1, y-2)) {
             losing = true;
           }
@@ -205,6 +218,33 @@ struct grid
     return c == ' ' && p != robot;
   }
 
+  int estimate() const
+  {
+    queue<pos> q;
+    q.push(robot);
+    vector<vector<int> > dist(H, vector<int>(W, INF));
+    dist[robot.y][robot.x] = 0;
+    int ans = INF;
+    while (!q.empty()) {
+      const pos p = q.front();
+      q.pop();
+      if (v[p.y][p.x] == '\\') {
+        ans = min(ans, dist[p.y][p.x]);
+      }
+      const int d = dist[p.y][p.x];
+      for (int i = 0; i < 4; i++) {
+        const int x = p.x + dx[i];
+        const int y = p.y + dy[i];
+        const int dd = d+1;
+        if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
+            && dd < dist[y][x]) {
+          dist[y][x] = dd;
+          q.push(pos(x, y));
+        }
+      }
+    }
+    return ans;
+  }
   void show(ostream& os) const
   {
     for (int i = H-1; i >= 0; i--) {
@@ -228,11 +268,11 @@ result dfs(const grid& gr, int depth)
   }
 
   grid g;
-  for (int i = 0; i < WAIT; i++) {
+  for (int i = 0; i <= WAIT; i++) {
     const move_type m = static_cast<move_type>(i);
     g = gr;
     const int t = g.move(m);
-    if (t == -1) {
+    if (t == INVALID_MOVE || t == NO_DIFFERENCE) {
       continue;
     }
     if (g.winning) {
@@ -243,10 +283,26 @@ result dfs(const grid& gr, int depth)
       r = max(r, result(t - 1 + u.score, m));
     }
   }
+  if (r.score == 0) {
+    int a = INF;
+    for (int i = 0; i <= WAIT; i++) {
+      const move_type m = static_cast<move_type>(i);
+      g = gr;
+      const int t = g.move(m);
+      if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
+        continue;
+      }
+      const int e = g.estimate();
+      if (e < a) {
+        a = e;
+        r = result(0, m);
+      }
+    }
+  }
   return r;
 }
 
-string solve(grid gr)
+string solve(grid gr, int max_depth)
 {
   ostringstream oss;
   while (true) {
@@ -257,7 +313,7 @@ string solve(grid gr)
       cerr << "losing" << endl;
       return oss.str();
     }
-    const result r = dfs(gr, 10);
+    const result r = dfs(gr, max_depth);
     cerr << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
@@ -284,7 +340,12 @@ int main(int argc, char *argv[])
     ifstream ifs(argv[1]);
     readlines(v, ifs);
   }
+  int max_depth = 10;
+  if (argc > 2) {
+    istringstream iss(argv[2]);
+    iss >> max_depth;
+  }
   grid g(v);
-  cout << solve(g) << endl;
+  cout << solve(g, max_depth) << endl;
   return 0;
 }
