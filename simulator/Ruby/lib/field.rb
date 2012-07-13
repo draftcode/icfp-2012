@@ -192,6 +192,10 @@ class Field
     @score += 25*@lambda_count
   end
 
+  def aborted_score
+    @score + 25*@lambda_count
+  end
+
   def to_s
     @field.map{|row| row.map{|sym| SYM_TO_CHAR[sym]}.join}.join("\n")
   end
@@ -202,7 +206,8 @@ class Field
   end
 
   def hash
-    @field.map{|row| row.map{|sym| SYM_TO_NUM[sym]}}.hash
+    #@field.map{|row| row.map{|sym| SYM_TO_NUM[sym]}}.hash
+    @field.hash
   end
 
   def eql?(other)
