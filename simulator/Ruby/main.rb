@@ -44,7 +44,8 @@ class Field
     @field.push(['#']*@width)
     @height = @field.size
 
-    @lambda_count = @field.inject(0){|acc,row| acc+row.count('\\')}
+    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count('\\')}
+    @lambda_count = 0
     @field.each_with_index do |row,y|
       idx = row.index('R')
       if idx
@@ -57,7 +58,7 @@ class Field
   end
 
   def lift_opened?
-    @lambda_count == 0
+    @lambda_count == @lambda_max_count
   end
 
   def in_grid?(x, y)
@@ -134,17 +135,21 @@ class Field
       if rock?(nx, ny)
         @field[ny][nx+dir.dx] = '*'
       elsif lambda?(nx, ny)
-        @lambda_count -= 1
+        @lambda_count += 1
         @score += 25
       elsif opened_lift?(nx, ny)
         @win = true
-        @score += 50
+        @score += 50*@lambda_count
       end
       @field[@robot_y][@robot_x] = ' '
       @field[ny][nx] = 'R'
       @robot_x, @robot_y = nx, ny
     end
     @score -= 1
+  end
+
+  def abort!
+    @score += 25*@lambda_count
   end
 
   def to_s
@@ -172,7 +177,7 @@ while true
   when 'W'
     field.move!(Direction::WAIT)
   when 'A'
-    abort_flag = true
+    field.abort!
     break
   end
   field.update!
@@ -187,5 +192,4 @@ while true
 end
 
 score = field.score
-score += 25 if abort_flag
 puts "Score: #{score}"
