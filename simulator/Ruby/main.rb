@@ -163,33 +163,41 @@ end
 field = Field.new(str_map)
 puts field
 abort_flag = false
-while true
-  cmd = STDIN.gets.chomp
-  case cmd
-  when 'U'
-    field.move!(Direction::UP)
-  when 'D'
-    field.move!(Direction::DOWN)
-  when 'L'
-    field.move!(Direction::LEFT)
-  when 'R'
-    field.move!(Direction::RIGHT)
-  when 'W'
-    field.move!(Direction::WAIT)
-  when 'A'
-    field.abort!
-    break
+catch(:end) {
+  while true
+    cmd = STDIN.gets.chomp
+    cmd.each_char do |ch|
+      case ch
+      when 'U'
+        field.move!(Direction::UP)
+      when 'D'
+        field.move!(Direction::DOWN)
+      when 'L'
+        field.move!(Direction::LEFT)
+      when 'R'
+        field.move!(Direction::RIGHT)
+      when 'W'
+        field.move!(Direction::WAIT)
+      when 'A'
+        field.abort!
+        throw :end
+      else
+        puts "Unknown command: #{ch}"
+        field.abort!
+        throw :end
+      end
+      field.update!
+      if field.win
+        puts "Win!"
+        throw :end
+      elsif field.lose
+        puts "Lose..."
+        throw :end
+      end
+    end
+    puts field
   end
-  field.update!
-  puts field
-  if field.win
-    puts "Win!"
-    break
-  elsif field.lose
-    puts "Lose..."
-    break
-  end
-end
+}
 
 score = field.score
 puts "Score: #{score}"
