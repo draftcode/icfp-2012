@@ -211,6 +211,7 @@ struct grid
       }
       closed_lambdas.clear();
     }
+    return cnt;
   }
 
   bool empty(char c, const pos& p) const
