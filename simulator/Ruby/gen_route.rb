@@ -37,7 +37,7 @@ end
 field = Field.new(maparr)
 
 $max_depth = 6
-10.times do
+100.times do
   puts "Maxdepth: #{$max_depth}"
   $seen.clear
   dfs(field, [], 0)

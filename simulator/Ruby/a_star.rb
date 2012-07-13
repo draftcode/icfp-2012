@@ -21,9 +21,11 @@ def heuristic(field)
     CMDLIST.each do |cmd|
       nx = x + cmd.dx
       ny = y + cmd.dy
-      if !field.wall?(nx, ny) && !visited[ny][nx]
+      if !field.wall?(nx, ny) && !field.rock?(nx, ny) && !visited[ny][nx]
         if field.lambda?(nx, ny)
-          cost += (base - dist)*10
+          cost += 25 / (dist+1)
+        elsif field.opened_lift?(nx, ny)
+          cost += field.lambda_count * 50
         end
         visited[ny][nx] = true
         q << [nx, ny, dist+1]
