@@ -61,9 +61,11 @@ until q.empty?
         h = heuristic(next_field)
         q.push([next_field, next_seq], -next_field.score-h)
       end
+      score = next_field.score
+      score = [score, next_field.aborted_score] if !next_field.win && !next_field.lose
       if next_field.score > max_score
         max_score = next_field.score
-        best_seq = next_seq.dup
+        best_seq = next_seq.dup + [:A]
         puts max_score
         puts best_seq.join
       end
