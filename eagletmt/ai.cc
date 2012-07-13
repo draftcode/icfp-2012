@@ -80,7 +80,7 @@ struct grid
   int H, W;
   pos robot;
   vector<string> v;
-  vector<pos> closed_lambdas;
+  pos lambda_lift;
   bool winning, losing;
   int collected_lambda;
 
@@ -108,7 +108,7 @@ struct grid
     for (int i = 0; i < H; i++) {
       for (int j = 0; j < W; j++) {
         if (v[i][j] == 'L') {
-          closed_lambdas.push_back(pos(j, i));
+          lambda_lift = pos(j, i);
         } else if (v[i][j] == 'R') {
           v[i][j] = ' ';
           robot = pos(j, i);
@@ -209,10 +209,7 @@ struct grid
       }
     }
     if (!lambda_exists) {
-      for (vector<pos>::const_iterator it = closed_lambdas.begin(); it != closed_lambdas.end(); ++it) {
-        v[it->y][it->x] = 'O';
-      }
-      closed_lambdas.clear();
+      v[lambda_lift.y][lambda_lift.x] = 'O';
     }
     return cnt;
   }
