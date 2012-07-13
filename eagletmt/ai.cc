@@ -231,6 +231,8 @@ struct grid
       q.pop();
       if (v[p.y][p.x] == '\\') {
         ans = min(ans, dist[p.y][p.x]);
+      } else if (v[p.y][p.x] == 'O') {
+        return dist[p.y][p.x];
       }
       const int d = dist[p.y][p.x];
       for (int i = 0; i < 4; i++) {
