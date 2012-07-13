@@ -82,6 +82,7 @@ struct grid
   vector<string> v;
   vector<pos> closed_lambdas;
   bool winning, losing;
+  int collected_lambda;
 
   grid() {}
 
@@ -116,6 +117,7 @@ struct grid
     }
 
     winning = losing = false;
+    collected_lambda = 0;
   }
 
   int move(move_type m)
@@ -127,6 +129,7 @@ struct grid
       int score = 0;
       if (v[robot.y][robot.x] == '\\') {
         score = 25;
+        ++collected_lambda;
       }
       const int cnt = update();
       if (m == WAIT && cnt == 0) {
@@ -134,7 +137,7 @@ struct grid
         return NO_DIFFERENCE;
       }
       if (v[robot.y][robot.x] == 'O') {
-        score = 50;
+        score = 50 * collected_lambda;
         winning = true;
       }
       v[robot.y][robot.x] = ' ';
