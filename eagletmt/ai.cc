@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <boost/unordered_map.hpp>
 using namespace std;
 static const int INF = 10000000;
 static const int dx[] = {-1, 1, 0, 0, 0, 0};
@@ -20,6 +21,13 @@ struct pos
 ostream& operator<<(ostream& os, const pos& p)
 {
   return os << "<pos x=" << p.x << ", y=" << p.y << ">";
+}
+size_t hash_value(const pos& p)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, p.x);
+  boost::hash_combine(seed, p.y);
+  return seed;
 }
 
 enum move_type {
@@ -67,6 +75,11 @@ ostream& operator<<(ostream& os, const result& r)
 static const int INVALID_MOVE = -1;
 static const int NO_DIFFERENCE = -2;
 
+typedef pair<vector<string>, int> memo_key_type;
+typedef result memo_value_type;
+typedef boost::unordered_map<memo_key_type, memo_value_type> memo_type;
+memo_type memo;
+
 struct grid
 {
   int H, W;
@@ -112,14 +125,24 @@ struct grid
     collected_lambda = 0;
   }
 
+  memo_key_type key(int d) const
+  {
+    vector<string>& vv = const_cast<vector<string>&>(v);
+    const char orig = vv[robot.y][robot.x];
+    vv[robot.y][robot.x] = 'R';
+    memo_key_type k = make_pair(v, d);
+    vv[robot.y][robot.x] = orig;
+    return k;
+  }
+
   int move(move_type m)
   {
     const int i = static_cast<int>(m);
     robot.x += dx[i];
     robot.y += dy[i];
-    if (robot.x < 0 || robot.y < 0 || robot.x >= v[0].size() || robot.y >= v.size())
+    if (robot.x < 0 || robot.y < 0 || robot.x >= W || robot.y >= H) {
       return NO_DIFFERENCE; // This is the same as WAIT.
-    else if (valid(m)) {
+    } else if (valid(m)) {
       int score = 0;
       const char orig = v[robot.y][robot.x];
       v[robot.y][robot.x] = ' ';
@@ -136,6 +159,7 @@ struct grid
         score = 50 * collected_lambda;
         winning = true;
       }
+      v[robot.y][robot.x] = ' ';
       return score;
     } else {
       return INVALID_MOVE;
@@ -264,6 +288,10 @@ result dfs(const grid& gr, int depth)
   if (depth == 0) {
     return r;
   }
+  memo_type::const_iterator it = memo.find(gr.key(depth));
+  if (it != memo.end()) {
+    return it->second;
+  }
 
   grid g;
   for (int i = 0; i <= WAIT; i++) {
@@ -297,6 +325,7 @@ result dfs(const grid& gr, int depth)
       }
     }
   }
+  memo.insert(make_pair(gr.key(depth), r));
   return r;
 }
 
@@ -305,14 +334,14 @@ string solve(grid gr, int max_depth)
   ostringstream oss;
   while (true) {
     if (gr.winning) {
-      cerr << "winning" << endl;
+      cout << "winning" << endl;
       return oss.str();
     } else if (gr.losing) {
-      cerr << "losing" << endl;
+      cout << "losing" << endl;
       return oss.str();
     }
     const result r = dfs(gr, max_depth);
-    cerr << r << endl;
+    cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
       return oss.str();
