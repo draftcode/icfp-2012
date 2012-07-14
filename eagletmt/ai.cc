@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <boost/unordered_map.hpp>
 using namespace std;
 static const int INF = 10000000;
 static const int dx[] = {-1, 1, 0, 0, 0, 0};
@@ -20,6 +21,13 @@ struct pos
 ostream& operator<<(ostream& os, const pos& p)
 {
   return os << "<pos x=" << p.x << ", y=" << p.y << ">";
+}
+size_t hash_value(const pos& p)
+{
+  size_t seed = 0;
+  boost::hash_combine(seed, p.x);
+  boost::hash_combine(seed, p.y);
+  return seed;
 }
 
 enum move_type {
@@ -49,14 +57,6 @@ ostream& operator<<(ostream& os, move_type m)
   throw __LINE__;
 }
 
-template <class T>
-string to_s(const T& val)
-{
-  ostringstream oss;
-  oss << val;
-  return oss.str();
-}
-
 struct result
 {
   int score;
@@ -75,6 +75,11 @@ ostream& operator<<(ostream& os, const result& r)
 static const int INVALID_MOVE = -1;
 static const int NO_DIFFERENCE = -2;
 
+typedef pair<vector<string>, int> memo_key_type;
+typedef result memo_value_type;
+typedef boost::unordered_map<memo_key_type, memo_value_type> memo_type;
+memo_type memo;
+
 struct grid
 {
   int H, W;
@@ -83,10 +88,13 @@ struct grid
   pos lambda_lift;
   bool winning, losing;
   int collected_lambda;
+  int water, flooding, waterproof;
+  int hp, water_turn;
 
   grid() {}
 
-  grid(const vector<string>& x)
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_)
+    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0)
   {
     v = x;
     H = v.size();
@@ -120,16 +128,30 @@ struct grid
     collected_lambda = 0;
   }
 
+  memo_key_type key(int d) const
+  {
+    vector<string>& vv = const_cast<vector<string>&>(v);
+    const char orig = vv[robot.y][robot.x];
+    vv[robot.y][robot.x] = 'R';
+    memo_key_type k = make_pair(v, d);
+    vv[robot.y][robot.x] = orig;
+    return k;
+  }
+
   int move(move_type m)
   {
     const int i = static_cast<int>(m);
     robot.x += dx[i];
     robot.y += dy[i];
-    if (robot.x < 0 || robot.y < 0 || robot.x >= v[0].size() || robot.y >= v.size())
+    if (robot.x < 0 || robot.y < 0 || robot.x >= W || robot.y >= H) {
       return NO_DIFFERENCE; // This is the same as WAIT.
-    else if (valid(m)) {
+    } else if (valid(m)) {
+      water_rise();
+
       int score = 0;
-      if (v[robot.y][robot.x] == '\\') {
+      const char orig = v[robot.y][robot.x];
+      v[robot.y][robot.x] = ' ';
+      if (orig == '\\') {
         score = 25;
         ++collected_lambda;
       }
@@ -165,6 +187,18 @@ struct grid
         || v[robot.y][robot.x] == '.'
         || v[robot.y][robot.x] == '\\'
         || v[robot.y][robot.x] == 'O';
+    }
+  }
+
+  void water_rise()
+  {
+    if (flooding == 0) {
+      return;
+    }
+    ++water_turn;
+    if (water_turn == flooding) {
+      ++water;
+      water_turn = 0;
     }
   }
 
@@ -213,6 +247,15 @@ struct grid
     if (!lambda_exists) {
       v[lambda_lift.y][lambda_lift.x] = 'O';
     }
+
+    if (robot.y <= water) {
+      --hp;
+      if (hp < 0) {
+        losing = true;
+      }
+    } else {
+      hp = waterproof;
+    }
     return cnt;
   }
 
@@ -260,6 +303,9 @@ struct grid
           os << v[i][j];
         }
       }
+      if (i == water) {
+        os << " ~~~(HP " << hp << ")~~~";
+      }
       os << endl;
     }
   }
@@ -270,6 +316,10 @@ result dfs(const grid& gr, int depth)
   result r = result::end();
   if (depth == 0) {
     return r;
+  }
+  memo_type::const_iterator it = memo.find(gr.key(depth));
+  if (it != memo.end()) {
+    return it->second;
   }
 
   grid g;
@@ -304,6 +354,7 @@ result dfs(const grid& gr, int depth)
       }
     }
   }
+  memo.insert(make_pair(gr.key(depth), r));
   return r;
 }
 
@@ -312,14 +363,14 @@ string solve(grid gr, int max_depth)
   ostringstream oss;
   while (true) {
     if (gr.winning) {
-      cerr << "winning" << endl;
+      cout << "winning" << endl;
       return oss.str();
     } else if (gr.losing) {
-      cerr << "losing" << endl;
+      cout << "losing" << endl;
       return oss.str();
     }
     const result r = dfs(gr, max_depth);
-    cerr << r << endl;
+    cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
       return oss.str();
@@ -329,28 +380,50 @@ string solve(grid gr, int max_depth)
   }
 }
 
-void readlines(vector<string>& v, istream& is)
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, istream& is)
 {
   for (string s; getline(is, s);) {
+    if (s.empty()) {
+      break;
+    }
     v.push_back(s);
+  }
+  for (string s; getline(is, s);) {
+    istringstream iss(s);
+    string key;
+    int val;
+    if (iss >> key >> val) {
+      if (key == "Water") {
+        water = val;
+      } else if (key == "Flooding") {
+        flooding = val;
+      } else if (key == "Waterproof") {
+        waterproof = val;
+      } else {
+        cerr << "Warning: unknown parameter: " << key << " = " << val << endl;
+      }
+    } else {
+      cerr << "Warning: unparsable: " << s << endl;
+    }
   }
 }
 
 int main(int argc, char *argv[])
 {
   vector<string> v;
+  int water = 0, flooding = 0, waterproof = 10;
   if (argc == 1) {
-    readlines(v, cin);
+    readlines(v, water, flooding, waterproof, cin);
   } else {
     ifstream ifs(argv[1]);
-    readlines(v, ifs);
+    readlines(v, water, flooding, waterproof, ifs);
   }
   int max_depth = 10;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
-  grid g(v);
+  grid g(v, water, flooding, waterproof);
   cout << solve(g, max_depth) << endl;
   return 0;
 }
