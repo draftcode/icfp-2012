@@ -22,6 +22,7 @@ class Field
   attr_reader :score, :lambda_count, :lambda_max_count
   attr_reader :width, :height
   attr_reader :field
+  attr_reader :water_level, :flooding, :waterproof
 
   CHAR_TO_SYM = {'#' => :wall, '*' => :rock, ' ' => :space, '\\' => :lambda, 'L' => :lift, 'R' => :robot, '.' => :earth}.freeze
   SYM_TO_CHAR = CHAR_TO_SYM.invert.freeze
@@ -29,15 +30,17 @@ class Field
   CHAR_TO_SYM.values.each_with_index do |sym,idx|
     SYM_TO_NUM[sym] = idx
   end
+
   def initialize(*args)
-    if args.size == 1
-      new_one(args.first)
+    if args.size == 1 && args.first.class == Field
+      clone_from(args.first)
     else
-      clone_from(*args)
+      new_one(*args)
     end
   end
 
-  def new_one(str_map)
+  def new_one(str_map, opt)
+    @turn = 0
     @lambda_count = 0
     @field = str_map.map do |row|
       row.each_char.map{|ch| CHAR_TO_SYM[ch]}
@@ -67,11 +70,16 @@ class Field
     end
     @win = @lose = false
     @score = 0
+
+    param = {:water => 0, :flood => 0, :waterproof => 10}.merge(opt)
+    @water_level = @height - param[:water] - 1
+    @flooding = param[:flooding] 
+    @hp = @waterproof = param[:waterproof]
   end
   private :new_one
 
-  def clone_from(field, obj)
-    @field = field
+  def clone_from(obj)
+    @field = obj.field.map{|row| row.dup}
     @robot_x = obj.robot_x
     @robot_y = obj.robot_y
     @win = obj.win
@@ -81,6 +89,11 @@ class Field
     @lambda_max_count = obj.lambda_max_count
     @width = obj.width
     @height = obj.height
+    @water_level = obj.water_level
+    @flooding = obj.flooding
+    @waterproof = obj.waterproof
+    @hp = obj.hp
+    @turn = obj.turn
   end
 
   def lift_opened?
@@ -132,6 +145,16 @@ class Field
   end
 
   def update!
+    @turn += 1
+    if @robot_y >= @water_level
+      @hp -= 1
+    else
+      @hp = @waterproof
+    end
+    if @flooding > 0 && @turn % @flooding == 0
+      @water_level -= 1
+    end
+
     new_field = Array.new(@height){Array.new(@width, :space)}
     (0...@height).reverse_each do |y|
       (0...@width).each do |x|
@@ -156,7 +179,11 @@ class Field
     if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
       @lose = true
     end
+    if @hp < 0
+      @lose = true
+    end
     @field = new_field
+    puts @hp
     self
   end
 
@@ -201,12 +228,13 @@ class Field
   end
 
   def to_s
-    @field.map{|row| row.map{|sym| SYM_TO_CHAR[sym]}.join}.join("\n")
+    m = @field.map{|row| row.map{|sym| SYM_TO_CHAR[sym]}.join}
+    m[@water_level] << "<- water"
+    m.join("\n")
   end
 
   def dup
-    new_field = @field.map{|row| row.dup}
-    Field.new(new_field, self)
+    Field.new(self)
   end
 
   def hash
