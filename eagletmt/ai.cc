@@ -125,7 +125,9 @@ struct grid
     const int i = static_cast<int>(m);
     robot.x += dx[i];
     robot.y += dy[i];
-    if (valid(m)) {
+    if (robot.x < 0 || robot.y < 0 || robot.x >= v[0].size() || robot.y >= v.size())
+      return NO_DIFFERENCE; // This is the same as WAIT.
+    else if (valid(m)) {
       int score = 0;
       if (v[robot.y][robot.x] == '\\') {
         score = 25;
