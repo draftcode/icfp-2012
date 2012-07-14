@@ -48,7 +48,7 @@ catch(:end) {
         next
       end
       next_field.update!
-      history << [field,cmd]
+      history << [field,ch]
 
       field = next_field
       if field.win
