@@ -33,10 +33,21 @@ def dfs(field, seq, depth)
   end
 end
 
-maparr = File.open(ARGV[0]) do |f|
-  f.each_line.map(&:chomp)
+str_map = []
+metadata = {}
+File.open(ARGV[0]) do |f|
+  while line = f.gets
+    line.chomp!
+    break if line == ""
+    str_map << line
+  end
+  while line = f.gets
+    line.chomp!
+    name, num = line.split
+    metadata[name.downcase.to_sym] = num.to_i
+  end
 end
-field = Field.new(maparr)
+field = Field.new(str_map, metadata)
 
 $max_depth = 6
 100.times do

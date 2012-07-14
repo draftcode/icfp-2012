@@ -38,18 +38,30 @@ seen = {}
 max_score = 0
 best_seq = [:A]
 
-maparr = File.open(ARGV[0]) do |f|
-  f.each_line.map(&:chomp)
+str_map = []
+metadata = {}
+File.open(ARGV[0]) do |f|
+  while line = f.gets
+    line.chomp!
+    break if line == ""
+    str_map << line
+  end
+  while line = f.gets
+    line.chomp!
+    name, num = line.split
+    metadata[name.downcase.to_sym] = num.to_i
+  end
 end
-field = Field.new(maparr)
+field = Field.new(str_map, metadata)
 
 q = CPriorityQueue.new
 q.push([field, []], -field.score-heuristic(field))
 until q.empty?
   cur,seq = q.delete_min_return_key
   next if seen.fetch(cur, -100000) > cur.score
-  puts cur
+  #puts cur
   #puts cur.score
+  candidates = []
   CMDLIST.each do |cmd|
     next_field = cur.move(cmd).update!
     next_seq = seq + [cmd.cmd]
@@ -57,7 +69,7 @@ until q.empty?
       seen[next_field] = next_field.score
       if !next_field.win && !next_field.lose
         h = heuristic(next_field)
-        q.push([next_field, next_seq], -next_field.score-h)
+        candidates << [[next_field, next_seq], next_field.score + h]
       end
       score = next_field.score
       score = [score, next_field.aborted_score] if !next_field.win && !next_field.lose
@@ -68,6 +80,10 @@ until q.empty?
         puts best_seq.join
       end
     end
+  end
+  sel = candidates.sort_by{|elem| elem[1]}.reverse[0,2]
+  sel.each do |elem|
+    q.push(elem[0], -elem[1])
   end
 end
 

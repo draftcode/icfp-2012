@@ -4,8 +4,13 @@ require_relative 'lib/field.rb'
 require 'optparse'
 
 KEYBIND = {
+<<<<<<< HEAD
   :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT},
   :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT}
+=======
+  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT},
+  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT}
+>>>>>>> simulator
 }.freeze
 mode = :normal
 game_mode = false
@@ -48,46 +53,55 @@ catch(:end) {
       ch.upcase!
       next_field = field.dup
       case ch
-      when 'W'
-        next_field.move!(Direction::WAIT)
       when 'A'
         next_field.abort!
+        history << [field,:A]
         throw :end
       when '<'
         puts "Undo!"
         field = history.pop.first
+        puts field
         next
       else
         dir = KEYBIND[mode].fetch(ch)
         if dir
+          if game_mode && !next_field.valid_move?(dir)
+            puts "Invalid move. Ignored."
+            next
+          end
           next_field.move!(dir)
+          history << [field,dir.cmd]
         else
           puts "Unknown command: #{ch}"
           next
         end
       end
       next_field.update!
-      history << [field,ch]
 
       field = next_field
+      puts "Score: #{field.score} / aborted #{field.aborted_score}"
+      puts "HP:#{field.hp}"
+      if field.flooding > 0
+        puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
+      else
+        puts "Water never rise"
+      end
+      puts field
+      puts ""
+
       if field.win
         puts "Win!"
-        throw :end
+        puts "Score: #{field.score}"
+        puts history.map{|arr| arr[1]}.join
+        #throw :end
       elsif field.lose
         puts "Lose..."
-        throw :end
+        puts "Score: #{field.score}"
+        puts history.map{|arr| arr[1]}.join
+        #throw :end
       end
     end
-    puts "HP:#{field.hp}"
-    if field.flooding > 0
-      puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
-    else
-      puts "Water never rise"
-    end
-    puts field
   end
 }
 
 score = field.score
-puts "Score: #{score}"
-puts history.map{|arr| arr[1]}.join
