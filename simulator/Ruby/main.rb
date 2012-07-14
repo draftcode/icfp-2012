@@ -60,6 +60,10 @@ catch(:end) {
       else
         dir = KEYBIND[mode].fetch(ch)
         if dir
+          if game_mode && !next_field.valid_move?(dir)
+            puts "Invalid move. Ignored."
+            next
+          end
           next_field.move!(dir)
           history << [field,dir.cmd]
         else
