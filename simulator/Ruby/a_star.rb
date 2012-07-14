@@ -38,17 +38,28 @@ seen = {}
 max_score = 0
 best_seq = [:A]
 
-maparr = File.open(ARGV[0]) do |f|
-  f.each_line.map(&:chomp)
+str_map = []
+metadata = {}
+File.open(ARGV[0]) do |f|
+  while line = f.gets
+    line.chomp!
+    break if line == ""
+    str_map << line
+  end
+  while line = f.gets
+    line.chomp!
+    name, num = line.split
+    metadata[name.downcase.to_sym] = num.to_i
+  end
 end
-field = Field.new(maparr)
+field = Field.new(str_map, metadata)
 
 q = CPriorityQueue.new
 q.push([field, []], -field.score-heuristic(field))
 until q.empty?
   cur,seq = q.delete_min_return_key
   next if seen.fetch(cur, -100000) > cur.score
-  puts cur
+  #puts cur
   #puts cur.score
   CMDLIST.each do |cmd|
     next_field = cur.move(cmd).update!
