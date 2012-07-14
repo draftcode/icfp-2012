@@ -4,8 +4,8 @@ require_relative 'lib/field.rb'
 require 'optparse'
 
 KEYBIND = {
-  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT},
-  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT}
+  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT},
+  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT}
 }.freeze
 mode = :normal
 game_mode = false
@@ -48,10 +48,9 @@ catch(:end) {
       ch.upcase!
       next_field = field.dup
       case ch
-      when 'W'
-        next_field.move!(Direction::WAIT)
       when 'A'
         next_field.abort!
+        history << [field,:A]
         throw :end
       when '<'
         puts "Undo!"
@@ -61,13 +60,13 @@ catch(:end) {
         dir = KEYBIND[mode].fetch(ch)
         if dir
           next_field.move!(dir)
+          history << [field,dir.cmd]
         else
           puts "Unknown command: #{ch}"
           next
         end
       end
       next_field.update!
-      history << [field,ch]
 
       field = next_field
       if field.win
