@@ -360,24 +360,30 @@ result dfs(const grid& gr, int depth)
 
 string solve(grid gr, int max_depth)
 {
+  int total = 0;
   ostringstream oss;
   while (true) {
     if (gr.winning) {
       cout << "winning" << endl;
-      return oss.str();
+      break;
     } else if (gr.losing) {
       cout << "losing" << endl;
-      return oss.str();
+      break;
     }
+    --total;
     const result r = dfs(gr, max_depth);
     cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
-      return oss.str();
+      total += 25 * gr.collected_lambda;
+      break;
     }
-    gr.move(r.move);
+    total += gr.move(r.move);
+    cout << "Current total: " << total << endl;
     gr.show(cout);
   }
+  cout << "Total score: " << total << endl;
+  return oss.str();
 }
 
 void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, istream& is)
