@@ -4,13 +4,8 @@ require_relative 'lib/field.rb'
 require 'optparse'
 
 KEYBIND = {
-<<<<<<< HEAD
-  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT},
-  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT}
-=======
   :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT},
   :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT}
->>>>>>> simulator
 }.freeze
 mode = :normal
 game_mode = false
