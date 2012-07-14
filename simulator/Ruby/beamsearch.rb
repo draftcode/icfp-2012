@@ -72,10 +72,11 @@ until q.empty?
         candidates << [[next_field, next_seq], next_field.score + h]
       end
       score = next_field.score
-      score = [score, next_field.aborted_score] if !next_field.win && !next_field.lose
-      if next_field.score > max_score
-        max_score = next_field.score
+      score = [score, next_field.aborted_score].max if !next_field.win && !next_field.lose
+      if score > max_score
+        max_score = score
         best_seq = next_seq.dup + [:A]
+        puts next_field
         puts max_score
         puts best_seq.join
       end
