@@ -360,8 +360,11 @@ result dfs(const grid& gr, int depth)
 
 string solve(grid gr, int max_depth)
 {
+  static const int DAMEPO = -1000;
   int total = 0;
   ostringstream oss;
+  string last_lambda;
+  int last_total = 0;
   while (true) {
     if (gr.winning) {
       cout << "winning" << endl;
@@ -378,7 +381,17 @@ string solve(grid gr, int max_depth)
       total += 25 * gr.collected_lambda;
       break;
     }
-    total += gr.move(r.move);
+    const int t = gr.move(r.move);
+    total += t;
+    if (t > 0) {
+      last_lambda = oss.str();
+      last_total = total + 25 * gr.collected_lambda;
+    }
+    if (total < DAMEPO) {
+      cout << "Rollback & Abort" << endl;
+      cout << "Total score: " << last_total << endl;
+      return last_lambda + "A";
+    }
     cout << "Current total: " << total << endl;
     gr.show(cout);
   }
