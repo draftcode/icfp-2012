@@ -88,10 +88,13 @@ struct grid
   pos lambda_lift;
   bool winning, losing;
   int collected_lambda;
+  int water, flooding, waterproof;
+  int hp;
 
   grid() {}
 
-  grid(const vector<string>& x)
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_)
+    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof)
   {
     v = x;
     H = v.size();
@@ -277,6 +280,9 @@ struct grid
           os << v[i][j];
         }
       }
+      if (i == water) {
+        os << " ~~~(HP " << hp << ")~~~";
+      }
       os << endl;
     }
   }
@@ -351,28 +357,50 @@ string solve(grid gr, int max_depth)
   }
 }
 
-void readlines(vector<string>& v, istream& is)
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, istream& is)
 {
   for (string s; getline(is, s);) {
+    if (s.empty()) {
+      break;
+    }
     v.push_back(s);
+  }
+  for (string s; getline(is, s);) {
+    istringstream iss(s);
+    string key;
+    int val;
+    if (iss >> key >> val) {
+      if (key == "Water") {
+        water = val;
+      } else if (key == "Flooding") {
+        flooding = val;
+      } else if (key == "Waterproof") {
+        waterproof = val;
+      } else {
+        cerr << "Warning: unknown parameter: " << key << " = " << val << endl;
+      }
+    } else {
+      cerr << "Warning: unparsable: " << s << endl;
+    }
   }
 }
 
 int main(int argc, char *argv[])
 {
   vector<string> v;
+  int water = 0, flooding = 0, waterproof = 10;
   if (argc == 1) {
-    readlines(v, cin);
+    readlines(v, water, flooding, waterproof, cin);
   } else {
     ifstream ifs(argv[1]);
-    readlines(v, ifs);
+    readlines(v, water, flooding, waterproof, ifs);
   }
   int max_depth = 10;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
-  grid g(v);
+  grid g(v, water, flooding, waterproof);
   cout << solve(g, max_depth) << endl;
   return 0;
 }
