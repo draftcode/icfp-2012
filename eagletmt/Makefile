@@ -5,6 +5,7 @@ SRCS = src/ai.cc
 OBJS = src/ai.o
 TARGET = lifter
 DIST = w8-8f.tgz
+README = README
 
 $(TARGET): $(OBJS)
 	$(CXX) -o $@ $(LDFLAGS) $(OBJS)
@@ -15,4 +16,4 @@ clean:
 dist: $(DIST)
 
 $(DIST): $(TARGET)
-	tar zcf $(DIST) $(SRCS) $(TARGET)
+	tar zcf $(DIST) $(SRCS) $(TARGET) $(README)
