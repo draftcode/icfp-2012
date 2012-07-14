@@ -55,6 +55,7 @@ catch(:end) {
       when '<'
         puts "Undo!"
         field = history.pop.first
+        puts field
         next
       else
         dir = KEYBIND[mode].fetch(ch)
@@ -69,24 +70,29 @@ catch(:end) {
       next_field.update!
 
       field = next_field
+      puts "Score: #{field.score} / aborted #{field.aborted_score}"
+      puts "HP:#{field.hp}"
+      if field.flooding > 0
+        puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
+      else
+        puts "Water never rise"
+      end
+      puts field
+      puts ""
+
       if field.win
         puts "Win!"
-        throw :end
+        puts "Score: #{field.score}"
+        puts history.map{|arr| arr[1]}.join
+        #throw :end
       elsif field.lose
         puts "Lose..."
-        throw :end
+        puts "Score: #{field.score}"
+        puts history.map{|arr| arr[1]}.join
+        #throw :end
       end
     end
-    puts "HP:#{field.hp}"
-    if field.flooding > 0
-      puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
-    else
-      puts "Water never rise"
-    end
-    puts field
   end
 }
 
 score = field.score
-puts "Score: #{score}"
-puts history.map{|arr| arr[1]}.join
