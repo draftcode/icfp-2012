@@ -88,7 +88,7 @@ struct grid
   vector<string> v;
   pos lambda_lift;
   bool winning, losing;
-  int collected_lambda;
+  int collected_lambda, total_lambda;
   int water, flooding, waterproof;
   int hp, water_turn;
 
@@ -127,6 +127,14 @@ struct grid
 
     winning = losing = false;
     collected_lambda = 0;
+    total_lambda = 0;
+    for (int i = 0; i < H; i++) {
+      for (int j = 0; j < W; j++) {
+        if (v[i][j] == '\\') {
+          ++total_lambda;
+        }
+      }
+    }
   }
 
   memo_key_type key(int d) const
@@ -294,6 +302,39 @@ struct grid
     }
     return ans;
   }
+
+  int heuristic() const
+  {
+    const int base = W + H;
+    int cost = 0;
+    vector<vector<int> > dist(H, vector<int>(W, INF));
+    queue<pos> q;
+    q.push(robot);
+    dist[robot.y][robot.x] = 0;
+    int dist_sum = 0;
+    while (!q.empty()) {
+      const pos p = q.front();
+      q.pop();
+      const int d = dist[p.y][p.x];
+      for (int i = 0; i < 4; i++) {
+        const int x = p.x + dx[i];
+        const int y = p.y + dy[i];
+        const int dd = d+1;
+        if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
+            && dd < dist[y][x]) {
+          dist[y][x] = dd;
+          q.push(pos(x, y));
+          if (v[y][x] == '\\') {
+            dist_sum += dist[y][x];
+          } else if (v[y][x] == 'O') {
+            cost += (collected_lambda+base-dist[y][x]) * 50;
+          }
+        }
+      }
+    }
+    return cost + collected_lambda*25 + 25*(total_lambda-dist_sum);
+  }
+
   void show(ostream& os) const
   {
     for (int i = H-1; i >= 0; i--) {
@@ -348,6 +389,7 @@ result dfs(const grid& gr, int depth)
       if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
         continue;
       }
+      //const int e = g.heuristic();
       const int e = g.estimate();
       if (e < a) {
         a = e;
@@ -370,15 +412,15 @@ string solve(grid gr, int max_depth)
   int last_total = 0;
   while (!sigint_received) {
     if (gr.winning) {
-      //cout << "winning" << endl;
+      cout << "winning" << endl;
       break;
     } else if (gr.losing) {
-      //cout << "losing" << endl;
+      cout << "losing" << endl;
       break;
     }
     --total;
     const result r = dfs(gr, max_depth);
-    //cout << r << endl;
+    cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
       total += 25 * gr.collected_lambda;
@@ -391,14 +433,14 @@ string solve(grid gr, int max_depth)
       last_total = total + 25 * gr.collected_lambda;
     }
     if (total < DAMEPO) {
-      //cout << "Rollback & Abort" << endl;
-      //cout << "Total score: " << last_total << endl;
+      cout << "Rollback & Abort" << endl;
+      cout << "Total score: " << last_total << endl;
       return last_lambda + "A";
     }
-    //cout << "Current total: " << total << endl;
-    //gr.show(cout);
+    cout << "Current total: " << total << endl;
+    gr.show(cout);
   }
-  //cout << "Total score: " << total << endl;
+  cout << "Total score: " << total << endl;
   return oss.str() + "A";
 }
 
