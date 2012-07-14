@@ -1,6 +1,22 @@
 #!/usr/bin/env ruby
 
 require_relative 'lib/field.rb'
+require 'optparse'
+
+KEYBIND = {
+  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT},
+  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT}
+}.freeze
+mode = :normal
+game_mode = false
+opts = OptionParser.new
+opts.on("--vim", "vim key bind(HJKL and W,A)"){|v| mode = :vim}
+opts.on("--game", "game mode(key input will be processed immediately)"){|v| game_mode = true}
+opts.parse!
+if game_mode
+  puts "Game mode"
+  require 'io/console'
+end
 
 str_map = []
 metadata = {}
@@ -20,20 +36,18 @@ end
 field = Field.new(str_map, metadata)
 history = []
 puts field
+puts "Press A to terminate"
 catch(:end) {
   while true
-    cmd = STDIN.gets.chomp
+    if game_mode
+      cmd = STDIN.getch
+    else
+      cmd = STDIN.gets.chomp
+    end
     cmd.each_char do |ch|
+      ch.upcase!
       next_field = field.dup
       case ch
-      when 'U'
-        next_field.move!(Direction::UP)
-      when 'D'
-        next_field.move!(Direction::DOWN)
-      when 'L'
-        next_field.move!(Direction::LEFT)
-      when 'R'
-        next_field.move!(Direction::RIGHT)
       when 'W'
         next_field.move!(Direction::WAIT)
       when 'A'
@@ -44,8 +58,13 @@ catch(:end) {
         field = history.pop.first
         next
       else
-        puts "Unknown command: #{ch}"
-        next
+        dir = KEYBIND[mode].fetch(ch)
+        if dir
+          next_field.move!(dir)
+        else
+          puts "Unknown command: #{ch}"
+          next
+        end
       end
       next_field.update!
       history << [field,ch]
