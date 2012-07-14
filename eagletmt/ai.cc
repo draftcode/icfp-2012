@@ -4,6 +4,7 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <signal.h>
 #include <boost/unordered_map.hpp>
 using namespace std;
 static const int INF = 10000000;
@@ -358,6 +359,8 @@ result dfs(const grid& gr, int depth)
   return r;
 }
 
+volatile bool sigint_received = false;
+
 string solve(grid gr, int max_depth)
 {
   static const int DAMEPO = -1000;
@@ -365,7 +368,7 @@ string solve(grid gr, int max_depth)
   ostringstream oss;
   string last_lambda;
   int last_total = 0;
-  while (true) {
+  while (!sigint_received) {
     if (gr.winning) {
       cout << "winning" << endl;
       break;
@@ -396,7 +399,7 @@ string solve(grid gr, int max_depth)
     gr.show(cout);
   }
   cout << "Total score: " << total << endl;
-  return oss.str();
+  return oss.str() + "A";
 }
 
 void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, istream& is)
@@ -427,8 +430,15 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, is
   }
 }
 
+void sigint_handler(int sig)
+{
+  sigint_received = true;
+}
+
 int main(int argc, char *argv[])
 {
+  signal(SIGINT, sigint_handler);
+
   vector<string> v;
   int water = 0, flooding = 0, waterproof = 10;
   if (argc == 1) {
