@@ -23,6 +23,7 @@ class Field
   attr_reader :width, :height
   attr_reader :field
   attr_reader :water_level, :flooding, :waterproof
+  attr_reader :hp, :turn
 
   CHAR_TO_SYM = {'#' => :wall, '*' => :rock, ' ' => :space, '\\' => :lambda, 'L' => :lift, 'R' => :robot, '.' => :earth}.freeze
   SYM_TO_CHAR = CHAR_TO_SYM.invert.freeze
@@ -183,7 +184,6 @@ class Field
       @lose = true
     end
     @field = new_field
-    puts @hp
     self
   end
 

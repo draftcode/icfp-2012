@@ -16,32 +16,41 @@ File.open(ARGV[0]) do |f|
     metadata[name.downcase.to_sym] = num.to_i
   end
 end
+
 field = Field.new(str_map, metadata)
+history = []
 puts field
 catch(:end) {
   while true
     cmd = STDIN.gets.chomp
     cmd.each_char do |ch|
+      next_field = field.dup
       case ch
       when 'U'
-        field.move!(Direction::UP)
+        next_field.move!(Direction::UP)
       when 'D'
-        field.move!(Direction::DOWN)
+        next_field.move!(Direction::DOWN)
       when 'L'
-        field.move!(Direction::LEFT)
+        next_field.move!(Direction::LEFT)
       when 'R'
-        field.move!(Direction::RIGHT)
+        next_field.move!(Direction::RIGHT)
       when 'W'
-        field.move!(Direction::WAIT)
+        next_field.move!(Direction::WAIT)
       when 'A'
-        field.abort!
+        next_field.abort!
         throw :end
+      when '<'
+        puts "Undo!"
+        field = history.pop.first
+        next
       else
         puts "Unknown command: #{ch}"
-        field.abort!
-        throw :end
+        next
       end
-      field.update!
+      next_field.update!
+      history << [field,cmd]
+
+      field = next_field
       if field.win
         puts "Win!"
         throw :end
@@ -50,9 +59,16 @@ catch(:end) {
         throw :end
       end
     end
+    puts "HP:#{field.hp}"
+    if field.flooding > 0
+      puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
+    else
+      puts "Water never rise"
+    end
     puts field
   end
 }
 
 score = field.score
 puts "Score: #{score}"
+puts history.map{|arr| arr[1]}.join
