@@ -370,15 +370,15 @@ string solve(grid gr, int max_depth)
   int last_total = 0;
   while (!sigint_received) {
     if (gr.winning) {
-      cout << "winning" << endl;
+      //cout << "winning" << endl;
       break;
     } else if (gr.losing) {
-      cout << "losing" << endl;
+      //cout << "losing" << endl;
       break;
     }
     --total;
     const result r = dfs(gr, max_depth);
-    cout << r << endl;
+    //cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
       total += 25 * gr.collected_lambda;
@@ -391,14 +391,14 @@ string solve(grid gr, int max_depth)
       last_total = total + 25 * gr.collected_lambda;
     }
     if (total < DAMEPO) {
-      cout << "Rollback & Abort" << endl;
-      cout << "Total score: " << last_total << endl;
+      //cout << "Rollback & Abort" << endl;
+      //cout << "Total score: " << last_total << endl;
       return last_lambda + "A";
     }
-    cout << "Current total: " << total << endl;
-    gr.show(cout);
+    //cout << "Current total: " << total << endl;
+    //gr.show(cout);
   }
-  cout << "Total score: " << total << endl;
+  //cout << "Total score: " << total << endl;
   return oss.str() + "A";
 }
 
@@ -422,10 +422,10 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, is
       } else if (key == "Waterproof") {
         waterproof = val;
       } else {
-        cerr << "Warning: unknown parameter: " << key << " = " << val << endl;
+        //cerr << "Warning: unknown parameter: " << key << " = " << val << endl;
       }
     } else {
-      cerr << "Warning: unparsable: " << s << endl;
+      //cerr << "Warning: unparsable: " << s << endl;
     }
   }
 }
