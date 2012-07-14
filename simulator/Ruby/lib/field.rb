@@ -72,7 +72,7 @@ class Field
     @win = @lose = false
     @score = 0
 
-    param = {:water => 0, :flood => 0, :waterproof => 10}.merge(opt)
+    param = {:water => 0, :flooding => 0, :waterproof => 10}.merge(opt)
     @water_level = @height - param[:water] - 1
     @flooding = param[:flooding] 
     @hp = @waterproof = param[:waterproof]
