@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -W -O3
-LDFLAGS = -static
+LDFLAGS = 
 SRCS = src/ai.cc
 OBJS = src/ai.o
 TARGET = lifter
