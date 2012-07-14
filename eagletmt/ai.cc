@@ -89,12 +89,12 @@ struct grid
   bool winning, losing;
   int collected_lambda;
   int water, flooding, waterproof;
-  int hp;
+  int hp, water_turn;
 
   grid() {}
 
   grid(const vector<string>& x, int water_, int flooding_, int waterproof_)
-    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof)
+    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0)
   {
     v = x;
     H = v.size();
@@ -146,6 +146,8 @@ struct grid
     if (robot.x < 0 || robot.y < 0 || robot.x >= W || robot.y >= H) {
       return NO_DIFFERENCE; // This is the same as WAIT.
     } else if (valid(m)) {
+      water_rise();
+
       int score = 0;
       const char orig = v[robot.y][robot.x];
       v[robot.y][robot.x] = ' ';
@@ -185,6 +187,18 @@ struct grid
         || v[robot.y][robot.x] == '.'
         || v[robot.y][robot.x] == '\\'
         || v[robot.y][robot.x] == 'O';
+    }
+  }
+
+  void water_rise()
+  {
+    if (flooding == 0) {
+      return;
+    }
+    ++water_turn;
+    if (water_turn == flooding) {
+      ++water;
+      water_turn = 0;
     }
   }
 
@@ -232,6 +246,15 @@ struct grid
     }
     if (!lambda_exists) {
       v[lambda_lift.y][lambda_lift.x] = 'O';
+    }
+
+    if (robot.y <= water) {
+      --hp;
+      if (hp < 0) {
+        losing = true;
+      }
+    } else {
+      hp = waterproof;
     }
     return cnt;
   }
