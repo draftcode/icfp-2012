@@ -49,14 +49,6 @@ ostream& operator<<(ostream& os, move_type m)
   throw __LINE__;
 }
 
-template <class T>
-string to_s(const T& val)
-{
-  ostringstream oss;
-  oss << val;
-  return oss.str();
-}
-
 struct result
 {
   int score;
@@ -129,7 +121,9 @@ struct grid
       return NO_DIFFERENCE; // This is the same as WAIT.
     else if (valid(m)) {
       int score = 0;
-      if (v[robot.y][robot.x] == '\\') {
+      const char orig = v[robot.y][robot.x];
+      v[robot.y][robot.x] = ' ';
+      if (orig == '\\') {
         score = 25;
         ++collected_lambda;
       }
@@ -142,7 +136,6 @@ struct grid
         score = 50 * collected_lambda;
         winning = true;
       }
-      v[robot.y][robot.x] = ' ';
       return score;
     } else {
       return INVALID_MOVE;
