@@ -10,6 +10,8 @@ $seen = {}
 def dfs(field, seq, depth)
   return if $seen.fetch(field, -1000000) > field.score
   $seen[field] = field.score
+  #puts "\033[0;0H"
+  #puts field
   if depth == $max_depth || field.win || field.lose
     if !field.win
       field.abort! 

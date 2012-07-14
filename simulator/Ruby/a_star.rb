@@ -13,29 +13,25 @@ def heuristic(field)
   visited = Array.new(field.height){Array.new(field.width, false)}
   q = [[field.robot_x, field.robot_y, 0]]
   visited[field.robot_y][field.robot_x] = true
-  step = 0
-  #puts "start: #{q.last.join(' ')}"
+  dist_sum = 0
   until q.empty?
     x, y, dist = q.shift
-    #puts "got: #{x} #{y} #{dist}"
+    dist += 1
     CMDLIST.each do |cmd|
       nx = x + cmd.dx
       ny = y + cmd.dy
       if !field.wall?(nx, ny) && !field.rock?(nx, ny) && !visited[ny][nx]
         if field.lambda?(nx, ny)
-          cost += 25 / (dist+1)
+          dist_sum += dist
         elsif field.opened_lift?(nx, ny)
-          cost += field.lambda_count * 50
+          cost += (field.lambda_count+base-dist) * 50
         end
         visited[ny][nx] = true
-        q << [nx, ny, dist+1]
-        #puts q.last.join(' ')
+        q << [nx, ny, dist]
       end
     end
-    step += 1
   end
-  #puts "step: #{step}"
-  cost + field.score*25
+  cost + field.score*25 + 25*(field.lambda_max_count-dist_sum)
 end
 
 seen = {}
@@ -52,7 +48,7 @@ q.push([field, []], -field.score-heuristic(field))
 until q.empty?
   cur,seq = q.delete_min_return_key
   next if seen.fetch(cur, -100000) > cur.score
-  #puts cur
+  puts cur
   #puts cur.score
   CMDLIST.each do |cmd|
     next_field = cur.move(cmd).update!

@@ -108,6 +108,10 @@ class Field
     in_grid?(x, y) && @field[y][x] == :wall
   end
 
+  def lift?(x, y)
+    in_grid?(x, y) && @field[y][x] == :lift
+  end
+
   def closed_lift?(x, y)
     in_grid?(x, y) && !lift_opened? && @field[y][x] == :lift
   end
