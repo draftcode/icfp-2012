@@ -107,11 +107,13 @@ struct grid/*{{{*/
   int water, flooding, waterproof;
   int hp, water_turn;
   vector<trampoline> trampolines;
+  int growth_rate, beard_turn;
 
   grid() {}
 
-  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec)/*{{{*/
-    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0)
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec, int growth_rate_)/*{{{*/
+    : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0),
+      growth_rate(growth_rate_), beard_turn(0)
   {
     v = x;
     H = v.size();
@@ -261,6 +263,13 @@ struct grid/*{{{*/
 
   int update()/*{{{*/
   {
+    bool beard_growth = false;
+    ++beard_turn;
+    if (beard_turn == growth_rate) {
+      beard_turn = 0;
+      beard_growth = true;
+    }
+
     vector<string> old(v);
     bool lambda_exists = false;
     int cnt = 0;
@@ -270,33 +279,44 @@ struct grid/*{{{*/
           lambda_exists = true;
         }
 
-        if (old[y][x] != '*') {
-          continue;
-        }
-        if (empty(old[y-1][x], pos(x, y-1))) {
-          v[y][x] = ' ';
-          v[y-1][x] = '*';
-          ++cnt;
-          if (robot == pos(x, y-2)) {
-            losing = true;
+        if (old[y][x] == '*') {
+          if (empty(old[y-1][x], pos(x, y-1))) {
+            v[y][x] = ' ';
+            v[y-1][x] = '*';
+            ++cnt;
+            if (robot == pos(x, y-2)) {
+              losing = true;
+            }
+          } else if (old[y-1][x] == '*'
+              && empty(old[y][x+1], pos(x+1, y))
+              && empty(old[y-1][x+1], pos(x+1, y-1))) {
+            v[y][x] = ' ';
+            v[y-1][x+1] = '*';
+            ++cnt;
+            if (robot == pos(x+1, y-2)) {
+              losing = true;
+            }
+          } else if (old[y-1][x] == '*'
+              && empty(old[y][x-1], pos(x-1, y))
+              && empty(old[y-1][x-1], pos(x-1, y-1))) {
+            v[y][x] = ' ';
+            v[y-1][x-1] = '*';
+            ++cnt;
+            if (robot == pos(x-1, y-2)) {
+              losing = true;
+            }
           }
-        } else if (old[y-1][x] == '*'
-            && empty(old[y][x+1], pos(x+1, y))
-            && empty(old[y-1][x+1], pos(x+1, y-1))) {
-          v[y][x] = ' ';
-          v[y-1][x+1] = '*';
-          ++cnt;
-          if (robot == pos(x+1, y-2)) {
-            losing = true;
-          }
-        } else if (old[y-1][x] == '*'
-            && empty(old[y][x-1], pos(x-1, y))
-            && empty(old[y-1][x-1], pos(x-1, y-1))) {
-          v[y][x] = ' ';
-          v[y-1][x-1] = '*';
-          ++cnt;
-          if (robot == pos(x-1, y-2)) {
-            losing = true;
+        } else if (old[y][x] == 'W') {
+          if (beard_growth) {
+            static const int dx8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+            static const int dy8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+            for (int i = 0; i < 8; i++) {
+              const int xx = x + dx8[i];
+              const int yy = y + dy8[i];
+              if (empty(old[yy][xx], pos(xx, yy))) {
+                v[yy][xx] = 'W';
+              }
+            }
           }
         }
       }
@@ -489,7 +509,7 @@ string solve(grid gr, int max_depth)/*{{{*/
   return oss.str() + "A";
 }/*}}}*/
 
-void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, istream& is)/*{{{*/
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, int& growth_rate, istream& is)/*{{{*/
 {
   for (string s; getline(is, s);) {
     if (s.empty()) {
@@ -502,17 +522,13 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, ve
     string key;
     if (iss >> key) {
       if (key == "Water") {
-        int val;
-        iss >> val;
-        water = val;
+        iss >> water;
       } else if (key == "Flooding") {
-        int val;
-        iss >> val;
-        flooding = val;
+        iss >> flooding;
       } else if (key == "Waterproof") {
-        int val;
-        iss >> val;
-        waterproof = val;
+        iss >> waterproof;
+      } else if (key == "Growth") {
+        iss >> growth_rate;
       } else if (key == "Trampoline") {
         string from, dummy, to;
         iss >> from >> dummy >> to;
@@ -537,19 +553,20 @@ int main(int argc, char *argv[])/*{{{*/
 
   vector<string> v;
   int water = 0, flooding = 0, waterproof = 10;
+  int growth_rate = 25;
   vector<pair<char,char> > trampoline_spec;
   if (argc == 1) {
-    readlines(v, water, flooding, waterproof, trampoline_spec, cin);
+    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, cin);
   } else {
     ifstream ifs(argv[1]);
-    readlines(v, water, flooding, waterproof, trampoline_spec, ifs);
+    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, ifs);
   }
   int max_depth = 10;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
-  grid g(v, water, flooding, waterproof, trampoline_spec);
+  grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate);
   cout << solve(g, max_depth) << endl;
   return 0;
 }/*}}}*/
