@@ -2,6 +2,7 @@
 
 require_relative 'lib/field.rb'
 require 'priority_queue'
+require 'optparse'
 
 CMDLIST = [Direction::UP, Direction::DOWN, Direction::LEFT, Direction::RIGHT, Direction::WAIT].freeze
 REV = {:U => :D, :D => :U, :R => :L, :L => :R}.freeze
@@ -87,9 +88,25 @@ def search_around(field)
   end
 end
 
+$silent = false
+def message(*args)
+  puts(*args) unless $silent
+end
+
+opts = OptionParser.new
+opts.on("--silent", "do not show any messages"){|v| $silent = true}
+opts.parse!
+
 seen = {}
 max_score = 0
 best_seq = [:A]
+
+trap(:INT) {
+  exit
+}
+END {
+  puts best_seq.join
+}
 
 str_map = []
 metadata = {}
@@ -118,7 +135,7 @@ File.open(ARGV[0]) do |f|
     when /Razors (\d+)/
       metadata[:razors] = $1.to_i
     else
-      puts "Unknown metadata: #{line}"
+      message "Unknown metadata: #{line}"
     end
   end
 end
@@ -154,9 +171,9 @@ until q.empty?
       if score > max_score
         max_score = score
         best_seq = next_seq.dup + [:A]
-        puts next_field
-        puts max_score
-        puts best_seq.join
+        message next_field
+        message max_score
+        message best_seq.join
       end
       q.push([next_field, next_seq], -(next_field.score + heuristic(next_field))) if !next_field.win && !next_field.lose
     end
@@ -177,9 +194,9 @@ until q.empty?
       if score > max_score
         max_score = score
         best_seq = next_seq.dup + [:A]
-        puts next_field
-        puts max_score
-        puts best_seq.join
+        message next_field
+        message max_score
+        message best_seq.join
       end
     end
   end
@@ -188,6 +205,3 @@ until q.empty?
     q.push(elem[0], -elem[1])
   end
 end
-
-puts max_score
-puts best_seq.join
