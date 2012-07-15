@@ -237,7 +237,7 @@ class Field
         @lambda_count += 1
         @score += 25
       elsif trampoline?(nx, ny)
-        target = @@trampoline_spec[@field[ny][nx]]
+        target = @@metadata[:trampoline][@field[ny][nx]]
         # 同じターゲットを参照しているトランポリンは即座に消える．
         @@trampolines.each do |pos|
           x, y = pos

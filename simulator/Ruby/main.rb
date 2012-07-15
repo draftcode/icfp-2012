@@ -46,7 +46,7 @@ File.open(ARGV[0]) do |f|
   end
 end
 
-Field.metadata = trampoline_spec
+Field.metadata = metadata
 field = Field.new(str_map)
 history = []
 puts field
