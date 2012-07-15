@@ -35,13 +35,12 @@ class Field
   TRAMPOLINE = /[A-I]/
   TARGET = /\d/
   
-  def self.trampoline_spec=(hash)
-    puts hash
-    @@trampoline_spec = hash.dup.freeze
+  def self.metadata=(hash)
+    @@metadata = {:water => 0, :flooding => 0, :waterproof => 10}.merge(hash).freeze
+    puts @@metadata
   end
 
   def initialize(*args)
-    @@trampoline_spec ||= {}
     if args.size == 1 && args.first.class == Field
       clone_from(args.first)
     else
@@ -49,7 +48,7 @@ class Field
     end
   end
 
-  def new_one(str_map, opt)
+  def new_one(str_map)
     @turn = 0
     @lambda_count = 0
     @field = str_map.map do |row|
@@ -87,6 +86,7 @@ class Field
         end
       end
     end
+    @@trampolines.freeze
     @@trampoline_targets.freeze
 
     # 初期状態
@@ -100,10 +100,9 @@ class Field
     @win = @lose = false
     @score = 0
 
-    param = {:water => 0, :flooding => 0, :waterproof => 10}.merge(opt)
-    @water_level = @height - param[:water] - 1
-    @flooding = param[:flooding] 
-    @hp = @waterproof = param[:waterproof]
+    # Floodingの設定
+    @water_level = @height - @@metadata[:water] - 1
+    @hp = @@metadata[:waterproof]
   end
   private :new_one
 
@@ -119,8 +118,6 @@ class Field
     @width = obj.width
     @height = obj.height
     @water_level = obj.water_level
-    @flooding = obj.flooding
-    @waterproof = obj.waterproof
     @hp = obj.hp
     @turn = obj.turn
   end
@@ -187,9 +184,9 @@ class Field
     if @robot_y >= @water_level
       @hp -= 1
     else
-      @hp = @waterproof
+      @hp = @@metadata[:waterproof]
     end
-    if @flooding > 0 && @turn % @flooding == 0
+    if @@metadata[:flooding] > 0 && @turn % @@metadata[:flooding] == 0
       @water_level -= 1
     end
 
@@ -244,7 +241,7 @@ class Field
         # 同じターゲットを参照しているトランポリンは即座に消える．
         @@trampolines.each do |pos|
           x, y = pos
-          if @@trampoline_spec[@field[y][x]] == target
+          if @@metadata[:trampoline][@field[y][x]] == target
             @field[y][x] = SPACE
           end
         end
