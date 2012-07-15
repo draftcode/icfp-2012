@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 import argparse
 import subprocess
+import signal
 import re
 import os
 import sys
@@ -40,14 +41,19 @@ def get_command(lifter, map_path):
                          stderr=subprocess.PIPE)
     p.stdin.write(open(map_path).read())
     p.stdin.close()
+    out = ""
     try:
-        p.wait()
+        while p.poll() is None:
+            out += p.stdout.read()
+            out = out.split()[-1]
     except KeyboardInterrupt as e:
-        p.kill()
-        raise e
+        p.send_signal(signal.SIGINT)
+        p.wait()
     elapsed_time = time.time() - start_time
+    out += p.stdout.read()
+    out = out.split()[-1]
 
-    return (p.stdout.read().split()[-1], elapsed_time)
+    return (out, elapsed_time)
 
 def main():
     parser = argparse.ArgumentParser()
