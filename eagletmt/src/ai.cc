@@ -384,7 +384,6 @@ struct grid/*{{{*/
     q.push(robot);
     vector<vector<int> > dist(H, vector<int>(W, INF));
     dist[robot.y][robot.x] = 0;
-    int ans = INF;
     while (!q.empty()) {
       const pos p = q.front();
       q.pop();
@@ -405,7 +404,7 @@ struct grid/*{{{*/
         }
       }
     }
-    return ans;
+    return INF;
   }/*}}}*/
 
   int heuristic() const/*{{{*/
