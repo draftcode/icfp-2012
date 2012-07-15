@@ -40,19 +40,38 @@ best_seq = [:A]
 
 str_map = []
 metadata = {}
+trampoline_spec = {}
 File.open(ARGV[0]) do |f|
   while line = f.gets
     line.chomp!
     break if line == ""
     str_map << line
   end
+  # load specs
   while line = f.gets
     line.chomp!
-    name, num = line.split
-    metadata[name.downcase.to_sym] = num.to_i
+    case line
+    when /Flooding\s+(\d+)/
+      metadata[:flooding] = $1.to_i
+    when /Water\s+(\d+)/
+      metadata[:water] = $1.to_i
+    when /Waterproof\s+(\d+)/
+      metadata[:waterproof] = $1.to_i
+    when /Trampoline (.) targets (.)/
+      metadata[:trampoline] ||= {}
+      metadata[:trampoline][$1] = $2.to_i
+    when /Growth (\d+)/
+      metadata[:growth] = $1.to_i
+    when /Razors (\d+)/
+      metadata[:razors] = $1.to_i
+    else
+      puts "Unknown metadata: #{line}"
+    end
   end
 end
-field = Field.new(str_map, metadata)
+
+Field.metadata = metadata
+field = Field.new(str_map)
 
 q = CPriorityQueue.new
 q.push([field, []], -field.score-heuristic(field))
