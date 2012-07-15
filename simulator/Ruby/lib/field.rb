@@ -19,7 +19,7 @@ end
 
 class Field
   attr_reader :robot_x, :robot_y
-  attr_reader :win, :lose
+  attr_reader :win, :lose, :aborted
   attr_reader :score, :lambda_count, :lambda_max_count
   attr_reader :width, :height
   attr_reader :field
@@ -41,7 +41,6 @@ class Field
   
   def self.metadata=(hash)
     @@metadata = {:water => 0, :flooding => 0, :waterproof => 10, :growth => 25, :razors => 0}.merge(hash).freeze
-    puts @@metadata
   end
 
   def initialize(*args)
@@ -101,7 +100,7 @@ class Field
         @robot_y = y
       end
     end
-    @win = @lose = false
+    @win = @lose = @aborted = false
     @score = 0
 
     # Floodingの設定
@@ -119,6 +118,7 @@ class Field
     @robot_y = obj.robot_y
     @win = obj.win
     @lose = obj.lose
+    @aborted = obj.aborted
     @score = obj.score
     @lambda_count = obj.lambda_count
     @lambda_max_count = obj.lambda_max_count
@@ -307,6 +307,7 @@ class Field
 
   def abort!
     @score += 25*@lambda_count
+    @aborted = true
   end
 
   def aborted_score

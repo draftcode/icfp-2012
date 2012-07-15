@@ -3,17 +3,27 @@
 require_relative 'lib/field.rb'
 require 'optparse'
 
+$debug_print = true
+def message(*args)
+  puts(*args) if $debug_print
+end
+
+def report(*args)
+  puts(*args)
+end
+
 KEYBIND = {
   :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT, 'S' => Direction::SHAVE},
   :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT, 'S' => Direction::SHAVE}
 }.freeze
-mode = :normal
-game_mode = false
+key_mode = :normal
+system_mode = :normal
 opts = OptionParser.new
-opts.on("--vim", "vim key bind(HJKL and W,A)"){|v| mode = :vim}
-opts.on("--game", "game mode(key input will be processed immediately)"){|v| game_mode = true}
+opts.on("--vim", "vim key bind(HJKL and W,A)"){|v| key_mode = :vim}
+opts.on("--game", "game mode(key input will be processed immediately)"){|v| system_mode = :game}
+opts.on("--evaluate", "evaluating mode(no debug outputs)"){|v| system_mode = :evaluate; $debug_print = false}
 opts.parse!
-if game_mode
+if system_mode == :game
   puts "Game mode"
   require 'io/console'
 end
@@ -53,61 +63,56 @@ end
 Field.metadata = metadata
 field = Field.new(str_map)
 history = []
-puts field
-puts "Press A to terminate"
-catch(:end) {
-  while true
-    if game_mode
-      cmd = STDIN.getch
-    else
-      cmd = STDIN.gets.chomp
-    end
-    cmd.each_char do |ch|
-      ch.upcase!
-      next_field = field.dup
-      case ch
-      when 'A'
-        next_field.abort!
-        history << [field,:A]
-        throw :end
-      when '<'
-        puts "Undo!"
-        field = history.pop.first
-        puts field
-        next
+message field
+message "Press A to terminate"
+loop do
+  catch(:end) {
+    loop do
+      if system_mode == :game
+        cmd = STDIN.getch
       else
-        dir = KEYBIND[mode][ch]
-        if dir
-          if game_mode && !next_field.valid_move?(dir)
-            puts "Invalid move. Ignored."
+        cmd = STDIN.gets
+      end
+      cmd ||= 'A'
+      cmd.chomp!
+      cmd.each_char do |ch|
+        ch.upcase!
+        next_field = field.dup
+        case ch
+        when 'A'
+          next_field.abort!
+          history << [field,:A]
+        when '<'
+          puts "Undo!"
+          field = history.pop.first
+          puts field
+          next
+        else
+          dir = KEYBIND[key_mode][ch]
+          if dir
+            if !next_field.valid_move?(dir)
+              report "Invalid move. Ignored."
+              next
+            end
+            next_field.move!(dir)
+            history << [field,dir.cmd]
+          else
+            puts "Unknown command: #{ch}"
             next
           end
-          next_field.move!(dir)
-          history << [field,dir.cmd]
-        else
-          puts "Unknown command: #{ch}"
-          next
         end
-      end
-      next_field.update!
+        next_field.update!
 
-      field = next_field
-      puts field
-      puts ""
-      
-      if field.win
-        puts "Win!"
-        puts "Score: #{field.score}"
-        puts history.map{|arr| arr[1]}.join
-        #throw :end
-      elsif field.lose
-        puts "Lose..."
-        puts "Score: #{field.score}"
-        puts history.map{|arr| arr[1]}.join
-        #throw :end
+        field = next_field
+        message field
+        message ""
+
+        throw :end if field.win || field.lose || field.aborted
       end
     end
-  end
-}
-
-score = field.score
+  }
+  message(field.aborted ? "Aborted" : field.win ? "Win!" : field.lose ? "Lose" : raise("Unexpected end"))
+  report "Score: #{field.score}"
+  report history.map{|elem| elem[1]}.join
+  break if field.aborted || system_mode == :evaluate
+end
