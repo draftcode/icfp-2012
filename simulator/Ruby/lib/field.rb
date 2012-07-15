@@ -10,6 +10,7 @@ class Direction
   UP = Direction.new(0, -1, :U)
   DOWN = Direction.new(0, 1, :D)
   WAIT = Direction.new(0, 0, :W)
+  SHAVE = Direction.new(0, 0, :S)
 
   class <<self
     private :new
@@ -24,6 +25,7 @@ class Field
   attr_reader :field
   attr_reader :water_level, :flooding, :waterproof
   attr_reader :hp, :turn
+  attr_reader :razors
 
   WALL = '#'
   ROCK = '*'
@@ -34,9 +36,11 @@ class Field
   EARTH = '.'
   TRAMPOLINE = /[A-I]/
   TARGET = /\d/
+  BEARD = 'W'
+  RAZOR = '!'
   
   def self.metadata=(hash)
-    @@metadata = {:water => 0, :flooding => 0, :waterproof => 10}.merge(hash).freeze
+    @@metadata = {:water => 0, :flooding => 0, :waterproof => 10, :growth => 25, :razors => 0}.merge(hash).freeze
     puts @@metadata
   end
 
@@ -103,6 +107,9 @@ class Field
     # Floodingの設定
     @water_level = @height - @@metadata[:water] - 1
     @hp = @@metadata[:waterproof]
+
+    # Beardの設定
+    @razors = @@metadata[:razors]
   end
   private :new_one
 
@@ -120,6 +127,7 @@ class Field
     @water_level = obj.water_level
     @hp = obj.hp
     @turn = obj.turn
+    @razors = obj.razors
   end
 
   def lift_opened?
@@ -167,15 +175,25 @@ class Field
     in_grid?(x, y) && @field[y][x] == LIFT && lift_opened?
   end
 
+  def beard?(x, y)
+    in_grid?(x, y) && @field[y][x] == BEARD
+  end
+
+  def razor?(x, y)
+    in_grid?(x, y) && @field[y][x] == RAZOR
+  end
+
   def valid_move?(dir)
     nx = @robot_x + dir.dx
     ny = @robot_y + dir.dy
-    if rock?(nx, ny)
+    if dir == Direction::SHAVE
+      @razors > 0
+    elsif rock?(nx, ny)
       return false if dir == Direction::UP || dir == Direction::DOWN
       empty?(nx+dir.dx, ny)
     else
       # trampoline target は壁(FAQより)
-      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny) && !target?(nx, ny)
+      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny) && !target?(nx, ny) && !beard?(nx, ny)
     end
   end
 
@@ -208,6 +226,17 @@ class Field
               new_field[y+1][x-1] = ROCK
             end
           end
+        when BEARD
+          if @turn % @@metadata[:growth] == 0
+            (-1..1).each do |dy|
+              check_y = y+dy
+              (-1..1).each do |dx|
+                check_x = x+dx
+                next if dy == 0 && dx == 0
+                new_field[check_y][check_x] = BEARD if empty?(check_x, check_y)
+              end
+            end
+          end
         end
       end
     end
@@ -231,7 +260,17 @@ class Field
     nx = @robot_x + dir.dx
     ny = @robot_y + dir.dy
     if valid_move?(dir)
-      if rock?(nx, ny)
+      if dir == Direction::SHAVE
+        (-1..1).each do |dy|
+          check_y = ny+dy
+          (-1..1).each do |dx|
+            check_x = nx+dx
+            if beard?(check_x, check_y)
+              @field[check_y][check_x] = SPACE
+            end
+          end
+        end
+      elsif rock?(nx, ny)
         @field[ny][nx+dir.dx] = ROCK
       elsif lambda?(nx, ny)
         @lambda_count += 1
@@ -250,6 +289,8 @@ class Field
       elsif opened_lift?(nx, ny)
         @win = true
         @score += 50*@lambda_count
+      elsif razor?(nx, ny)
+        @razors += 1
       end
       @field[@robot_y][@robot_x] = SPACE
       @field[ny][nx] = ROBOT
@@ -273,9 +314,14 @@ class Field
   end
 
   def to_s
+    flood_str = @@metadata[:flooding] != 0 ?
+      "#{@turn % @@metadata[:flooding]}/#{@@metadata[:flooding]}" :
+      "Water never rise"
+    str = "Score: #{@score} / aborted #{aborted_score}\n"
+    str << "Next Growth: #{@turn % @@metadata[:growth]}/#{@@metadata[:growth]} Razors: #{@razors}\n"
     m = @field.map{|row| row.join}
-    m[@water_level] << "<- water"
-    m.join("\n")
+    m[@water_level] << "~~~ (HP #{@hp})~~~ #{flood_str}"
+    str << m.join("\n")
   end
 
   def dup
