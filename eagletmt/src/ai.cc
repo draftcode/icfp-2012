@@ -9,8 +9,10 @@
 #include <boost/unordered_map.hpp>
 using namespace std;
 static const int INF = 10000000;
-static const int dx[] = {-1, 1, 0, 0, 0, 0};
-static const int dy[] = {0, 0, -1, 1, 0, 0};
+static const int dx[] = {-1, 1, 0, 0, 0, 0, 0};
+static const int dy[] = {0, 0, -1, 1, 0, 0, 0};
+static const int dx8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+static const int dy8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
 struct pos/*{{{*/
 {
@@ -38,6 +40,7 @@ enum move_type {/*{{{*/
   DOWN,
   UP,
   WAIT,
+  SHAVE,
   ABORT,
 };
 ostream& operator<<(ostream& os, move_type m)
@@ -53,6 +56,8 @@ ostream& operator<<(ostream& os, move_type m)
       return os << "U";
     case WAIT:
       return os << "W";
+    case SHAVE:
+      return os << "S";
     case ABORT:
       return os << "A";
   }
@@ -108,12 +113,13 @@ struct grid/*{{{*/
   int hp, water_turn;
   vector<trampoline> trampolines;
   int growth_rate, beard_turn;
+  int razors;
 
   grid() {}
 
-  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec, int growth_rate_)/*{{{*/
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec, int growth_rate_, int razors_)/*{{{*/
     : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0),
-      growth_rate(growth_rate_), beard_turn(0)
+      growth_rate(growth_rate_), beard_turn(0), razors(razors_)
   {
     v = x;
     H = v.size();
@@ -179,6 +185,26 @@ struct grid/*{{{*/
     robot.y += dy[i];
     if (robot.x < 0 || robot.y < 0 || robot.x >= W || robot.y >= H) {
       return NO_DIFFERENCE; // This is the same as WAIT.
+    } else if (m == SHAVE) {
+      if (razors == 0) {
+        return INVALID_MOVE;
+      } else {
+        --razors;
+        int cnt = 0;
+        for (int i = 0; i < 8; i++) {
+          const int x = robot.x + dx8[i];
+          const int y = robot.y + dy8[i];
+          if (v[y][x] == 'W') {
+            v[y][x] = ' ';
+            ++cnt;
+          }
+        }
+        if (cnt == 0) {
+          return NO_DIFFERENCE;
+        } else {
+          return 0;
+        }
+      }
     } else if (valid(m)) {
       water_rise();
 
@@ -188,6 +214,8 @@ struct grid/*{{{*/
       if (orig == '\\') {
         score = 25;
         ++collected_lambda;
+      } else if (orig == '!') {
+        ++razors;
       }
       const int cnt = update();
       if (m == WAIT && cnt == 0) {
@@ -223,6 +251,7 @@ struct grid/*{{{*/
         v[robot.y][robot.x] == ' '
         || v[robot.y][robot.x] == '.'
         || v[robot.y][robot.x] == '\\'
+        || v[robot.y][robot.x] == '!'
         || v[robot.y][robot.x] == 'O';
     }
   }/*}}}*/
@@ -308,8 +337,6 @@ struct grid/*{{{*/
           }
         } else if (old[y][x] == 'W') {
           if (beard_growth) {
-            static const int dx8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-            static const int dy8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
             for (int i = 0; i < 8; i++) {
               const int xx = x + dx8[i];
               const int yy = y + dy8[i];
@@ -402,6 +429,7 @@ struct grid/*{{{*/
 
   void show(ostream& os) const/*{{{*/
   {
+    os << "[Razors = " << razors << "]" << endl;
     for (int i = H-1; i >= 0; i--) {
       for (int j = 0; j < W; j++) {
         if (robot == pos(j, i)) {
@@ -430,7 +458,7 @@ result dfs(const grid& gr, int depth)/*{{{*/
   }
 
   grid g;
-  for (int i = 0; i <= WAIT; i++) {
+  for (int i = 0; i < ABORT; i++) {
     const move_type m = static_cast<move_type>(i);
     g = gr;
     const int t = g.move(m);
@@ -447,7 +475,7 @@ result dfs(const grid& gr, int depth)/*{{{*/
   }
   if (r.score == 0) {
     int a = INF;
-    for (int i = 0; i <= WAIT; i++) {
+    for (int i = 0; i < ABORT; i++) {
       const move_type m = static_cast<move_type>(i);
       g = gr;
       const int t = g.move(m);
@@ -509,7 +537,7 @@ string solve(grid gr, int max_depth)/*{{{*/
   return oss.str() + "A";
 }/*}}}*/
 
-void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, int& growth_rate, istream& is)/*{{{*/
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, int& growth_rate, int& razors, istream& is)/*{{{*/
 {
   for (string s; getline(is, s);) {
     if (s.empty()) {
@@ -529,6 +557,8 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, ve
         iss >> waterproof;
       } else if (key == "Growth") {
         iss >> growth_rate;
+      } else if (key == "Razors") {
+        iss >> razors;
       } else if (key == "Trampoline") {
         string from, dummy, to;
         iss >> from >> dummy >> to;
@@ -554,19 +584,20 @@ int main(int argc, char *argv[])/*{{{*/
   vector<string> v;
   int water = 0, flooding = 0, waterproof = 10;
   int growth_rate = 25;
+  int razors = 0;
   vector<pair<char,char> > trampoline_spec;
   if (argc == 1) {
-    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, cin);
+    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors, cin);
   } else {
     ifstream ifs(argv[1]);
-    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, ifs);
+    readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors, ifs);
   }
   int max_depth = 10;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
-  grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate);
+  grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
   cout << solve(g, max_depth) << endl;
   return 0;
 }/*}}}*/
