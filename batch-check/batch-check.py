@@ -9,6 +9,7 @@ import re
 import os
 import sys
 import glob
+import fcntl
 import time
 import cPickle as pickle
 
@@ -42,17 +43,20 @@ def get_command(lifter, map_path, timeout=150):
     p.stdin.write(open(map_path).read())
     p.stdin.close()
     out = ""
+    fl = fcntl.fcntl(p.stdout, fcntl.F_GETFL)
+    fcntl.fcntl(p.stdout, fcntl.F_SETFL, fl | os.O_NONBLOCK)
     try:
         while p.poll() is None:
-            out += p.stdout.read(512)
+            out += p.stdout.read()
             sp = out.split()
             if len(sp) != 0:
                 out = sp[-1]
             if time.time() - start_time >= timeout:
                 p.send_signal(signal.SIGINT)
+                break
     except KeyboardInterrupt as e:
         p.send_signal(signal.SIGINT)
-        p.wait()
+    p.wait()
     elapsed_time = time.time() - start_time
     out += p.stdout.read()
     sp = out.split()
@@ -92,6 +96,7 @@ def main():
                         point, elapsed_time, point-prev_point, elapsed_time-prev_time)
             else:
                 print "%d\t(%fsec)" % (point, elapsed_time)
+            print command
             results[key] = (point, elapsed_time)
             pickle.dump(results, open(results_path, 'wb'))
         except KeyboardInterrupt:
