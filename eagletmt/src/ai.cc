@@ -287,7 +287,7 @@ struct grid/*{{{*/
             if (robot == pos(x, y-2)) {
               losing = true;
             }
-          } else if (old[y-1][x] == '*'
+          } else if ((old[y-1][x] == '*' || old[y-1][x] == '\\')
               && empty(old[y][x+1], pos(x+1, y))
               && empty(old[y-1][x+1], pos(x+1, y-1))) {
             v[y][x] = ' ';
