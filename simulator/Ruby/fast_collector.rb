@@ -136,24 +136,34 @@ until q.empty?
   candidates = []
   if res = search_around(cur)
     next_field = cur.dup
-    res.each do |cmd|
+    cmd_len = res.size
+    res.each_with_index do |cmd, idx|
+      prev_field = next_field.dup
       next_field.move!(cmd)
       next_field.update!
+      if !prev_field.valid_move?(cmd) || next_field.lose
+        next_field = prev_field
+        cmd_len = idx
+        break
+      end
     end
-    next_seq = seq + res.map{|cmd| cmd.cmd}
-    score = next_field.score
-    score = [score, next_field.aborted_score].max if !next_field.win && !next_field.lose
-    if score > max_score
-      max_score = score
-      best_seq = next_seq.dup + [:A]
-      puts next_field
-      puts max_score
-      puts best_seq.join
+    if cmd_len > 0
+      next_seq = seq + res[0,cmd_len].map{|cmd| cmd.cmd}
+      score = next_field.score
+      score = [score, next_field.aborted_score].max if !next_field.win && !next_field.lose
+      if score > max_score
+        max_score = score
+        best_seq = next_seq.dup + [:A]
+        puts next_field
+        puts max_score
+        puts best_seq.join
+      end
+      q.push([next_field, next_seq], -(next_field.score + heuristic(next_field))) if !next_field.win && !next_field.lose
     end
-    q.push([next_field, next_seq], -(next_field.score + heuristic(next_field))) if !next_field.win && !next_field.lose
   end
 
   CMDLIST.each do |cmd|
+    next unless cur.valid_move?(cmd)
     next_field = cur.move(cmd).update!
     next_seq = seq + [cmd.cmd]
     if seen.fetch(next_field, -100000) < next_field.score
