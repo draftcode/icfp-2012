@@ -183,6 +183,11 @@ class Field
     in_grid?(x, y) && @field[y][x] == RAZOR
   end
 
+  def enterable?(x, y)
+    # trampoline target は壁(FAQより)
+    in_grid?(x, y) && !wall?(x, y) && !closed_lift?(x, y) && !target?(x, y) && !beard?(x, y)
+  end
+
   def valid_move?(dir)
     nx = @robot_x + dir.dx
     ny = @robot_y + dir.dy
@@ -192,8 +197,7 @@ class Field
       return false if dir == Direction::UP || dir == Direction::DOWN
       empty?(nx+dir.dx, ny)
     else
-      # trampoline target は壁(FAQより)
-      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny) && !target?(nx, ny) && !beard?(nx, ny)
+      enterable?(nx, ny)
     end
   end
 
