@@ -1,6 +1,4 @@
-usage: batch-check.py [-h] [--pattern PATTERN] [--no-beard] [--no-trampoline]
-                      [--no-flood] [--no-default] [--no-10]
-                      lifter
+usage: batch-check.py [-h] [--pattern PATTERN] [--timeout TIMEOUT] lifter
 
 positional arguments:
   lifter
@@ -8,11 +6,7 @@ positional arguments:
 optional arguments:
   -h, --help         show this help message and exit
   --pattern PATTERN
-  --no-beard
-  --no-trampoline
-  --no-flood
-  --no-default
-  --no-10
+  --timeout TIMEOUT
 
 example: ./batch-check.py --pattern maze ../eagletmt/lifter
 example: ./batch-check.py --pattern flood "../eagletmt/lifter @ 15"

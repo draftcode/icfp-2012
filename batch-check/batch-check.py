@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
@@ -32,7 +32,7 @@ def get_point(commands, map_path):
         return 0
     return int(match.group(1))
 
-def get_command(lifter, map_path):
+def get_command(lifter, map_path, timeout=150):
     lifter = [map_path if v == "@" else v for v in lifter]
     start_time = time.time()
     p = subprocess.Popen(lifter,
@@ -44,14 +44,20 @@ def get_command(lifter, map_path):
     out = ""
     try:
         while p.poll() is None:
-            out += p.stdout.read()
-            out = out.split()[-1]
+            out += p.stdout.read(512)
+            sp = out.split()
+            if len(sp) != 0:
+                out = sp[-1]
+            if time.time() - start_time >= timeout:
+                p.send_signal(signal.SIGINT)
     except KeyboardInterrupt as e:
         p.send_signal(signal.SIGINT)
         p.wait()
     elapsed_time = time.time() - start_time
     out += p.stdout.read()
-    out = out.split()[-1]
+    sp = out.split()
+    if len(sp) != 0:
+        out = sp[-1]
 
     return (out, elapsed_time)
 
@@ -59,11 +65,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('lifter')
     parser.add_argument('--pattern', type=str)
-    parser.add_argument('--no-beard', action='store_true', dest='nobeard', default=False)
-    parser.add_argument('--no-trampoline', action='store_true', dest='notrampoline', default=False)
-    parser.add_argument('--no-flood', action='store_true', dest='noflood', default=False)
-    parser.add_argument('--no-default', action='store_true', dest='nodefault', default=False)
-    parser.add_argument('--no-10', action='store_true', dest='no10', default=False)
+    parser.add_argument('--timeout', type=int, default=150)
     args = parser.parse_args()
 
     lifter = args.lifter.split()
@@ -71,29 +73,18 @@ def main():
                                 "batch-check-result.pickle")
     files = sorted(glob.glob(os.path.join(base_path, 'map', '*.map')))
 
-
     results = dict()
     if os.path.exists(results_path):
         results = pickle.load(open(results_path, 'rb'))
 
     for map_path in files:
-        if args.nobeard and os.path.basename(map_path).startswith("beard"):
-            continue
-        if args.notrampoline and os.path.basename(map_path).startswith("trampoline"):
-            continue
-        if args.noflood and os.path.basename(map_path).startswith("flood"):
-            continue
-        if args.nodefault and os.path.basename(map_path).startswith("contest"):
-            continue
-        if args.no10 and os.path.basename(map_path) == ("contest10.map"):
-            continue
         if args.pattern and not re.search(args.pattern, map_path):
             continue
         try:
             key = os.path.basename(map_path)
             print "%s\t" % key,
             sys.stdout.flush()
-            command, elapsed_time = get_command(lifter, map_path)
+            command, elapsed_time = get_command(lifter, map_path, args.timeout)
             point = get_point(command, map_path)
             if key in results:
                 prev_point, prev_time = results[key]
@@ -106,7 +97,6 @@ def main():
         except KeyboardInterrupt:
             print ""
             pass
-
 
 if __name__ == '__main__':
     main()
