@@ -246,6 +246,9 @@ class Field
             end
           end
           if nx && ny
+            if nx == @robot_x && ny == @robot_y-1
+              @lose = true
+            end
             if horock?(x, y) && !empty?(nx, ny+1)
               new_field[ny][nx] = LAMBDA
             else
@@ -266,9 +269,9 @@ class Field
         end
       end
     end
-    if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
-      @lose = true
-    end
+    #if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
+    #  @lose = true
+    #end
     if @hp < 0
       @lose = true
     end
