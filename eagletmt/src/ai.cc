@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <queue>
 #include <algorithm>
 #include <signal.h>
@@ -81,6 +82,20 @@ typedef result memo_value_type;
 typedef boost::unordered_map<memo_key_type, memo_value_type> memo_type;
 memo_type memo;
 
+struct trampoline
+{
+  char mark;
+  pos from, to;
+  trampoline() {}
+  trampoline(char m, const pos& f, const pos& t)
+    : mark(m), from(f), to(t)
+  {}
+};
+ostream& operator<<(ostream& os, const trampoline& t)
+{
+  return os << "<trampoline mark=" << t.mark << ", from=" << t.from << ", to=" << t.to << ">";
+}
+
 struct grid
 {
   int H, W;
@@ -91,10 +106,11 @@ struct grid
   int collected_lambda, total_lambda;
   int water, flooding, waterproof;
   int hp, water_turn;
+  vector<trampoline> trampolines;
 
   grid() {}
 
-  grid(const vector<string>& x, int water_, int flooding_, int waterproof_)
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec)
     : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0)
   {
     v = x;
@@ -128,12 +144,19 @@ struct grid
     winning = losing = false;
     collected_lambda = 0;
     total_lambda = 0;
+    map<char, pos> tramp_info;
     for (int i = 0; i < H; i++) {
       for (int j = 0; j < W; j++) {
         if (v[i][j] == '\\') {
           ++total_lambda;
+        } else if (is_trampoline(v[i][j]) || is_target(v[i][j])) {
+          tramp_info.insert(make_pair(v[i][j], pos(j, i)));
         }
       }
+    }
+    for (vector<pair<char,char> >::const_iterator it = trampoline_spec.begin(); it != trampoline_spec.end(); ++it) {
+      trampoline t(it->first, tramp_info[it->first], tramp_info[it->second]);
+      trampolines.push_back(trampoline(it->first, tramp_info[it->first], tramp_info[it->second]));
     }
   }
 
@@ -190,12 +213,43 @@ struct grid
       v[robot.y][robot.x+1] = '*';
       v[robot.y][robot.x] = ' ';
       return true;
+    } else if (is_trampoline(v[robot.y][robot.x])) {
+      jump_from(v[robot.y][robot.x]);
+      return true;
     } else {
       return
         v[robot.y][robot.x] == ' '
         || v[robot.y][robot.x] == '.'
         || v[robot.y][robot.x] == '\\'
         || v[robot.y][robot.x] == 'O';
+    }
+  }
+
+  static bool is_trampoline(char c)
+  {
+    return 'A' <= c && c <= 'I';
+  }
+
+  static bool is_target(char c)
+  {
+    return '1' <= c && c <= '9';
+  }
+
+  void jump_from(char t)
+  {
+    trampoline tramp;
+    for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
+      if (it->mark == t) {
+        tramp = *it;
+        break;
+      }
+    }
+    robot = tramp.to;
+    for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
+      if (it->to == robot) {
+        const pos& p = it->from;
+        v[p.y][p.x] = ' ';
+      }
     }
   }
 
@@ -444,7 +498,7 @@ string solve(grid gr, int max_depth)
   return oss.str() + "A";
 }
 
-void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, istream& is)
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, istream& is)
 {
   for (string s; getline(is, s);) {
     if (s.empty()) {
@@ -455,14 +509,23 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, is
   for (string s; getline(is, s);) {
     istringstream iss(s);
     string key;
-    int val;
-    if (iss >> key >> val) {
+    if (iss >> key) {
       if (key == "Water") {
+        int val;
+        iss >> val;
         water = val;
       } else if (key == "Flooding") {
+        int val;
+        iss >> val;
         flooding = val;
       } else if (key == "Waterproof") {
+        int val;
+        iss >> val;
         waterproof = val;
+      } else if (key == "Trampoline") {
+        string from, dummy, to;
+        iss >> from >> dummy >> to;
+        trampoline_spec.push_back(make_pair(from[0], to[0]));
       } else {
         //cerr << "Warning: unknown parameter: " << key << " = " << val << endl;
       }
@@ -483,18 +546,19 @@ int main(int argc, char *argv[])
 
   vector<string> v;
   int water = 0, flooding = 0, waterproof = 10;
+  vector<pair<char,char> > trampoline_spec;
   if (argc == 1) {
-    readlines(v, water, flooding, waterproof, cin);
+    readlines(v, water, flooding, waterproof, trampoline_spec, cin);
   } else {
     ifstream ifs(argv[1]);
-    readlines(v, water, flooding, waterproof, ifs);
+    readlines(v, water, flooding, waterproof, trampoline_spec, ifs);
   }
   int max_depth = 10;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
-  grid g(v, water, flooding, waterproof);
+  grid g(v, water, flooding, waterproof, trampoline_spec);
   cout << solve(g, max_depth) << endl;
   return 0;
 }
