@@ -38,6 +38,8 @@ class Field
   TARGET = /\d/
   BEARD = 'W'
   RAZOR = '!'
+  HOROCK = '@'
+  KIND_OF_ROCK = /[*@]/
   
   def self.metadata=(hash)
     @@metadata = {:water => 0, :flooding => 0, :waterproof => 10, :growth => 25, :razors => 0}.merge(hash).freeze
@@ -74,7 +76,7 @@ class Field
     @height = @field.size
 
     # λの総個数をカウント
-    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)}
+    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)+row.count(HOROCK)}
     @lambda_count = 0
 
     # トランポリンの列挙(トランポリンの削除に使う)とトランポリンの目的地テーブルの作成
@@ -183,6 +185,14 @@ class Field
     in_grid?(x, y) && @field[y][x] == RAZOR
   end
 
+  def horock?(x, y)
+    in_grid?(x, y) && @field[y][x] == HOROCK
+  end
+
+  def kind_of_rock?(x, y)
+    rock?(x, y) || horock?(x, y)
+  end
+
   def enterable?(x, y)
     # trampoline target は壁(FAQより)
     in_grid?(x, y) && !wall?(x, y) && !closed_lift?(x, y) && !target?(x, y) && !beard?(x, y)
@@ -193,7 +203,7 @@ class Field
     ny = @robot_y + dir.dy
     if dir == Direction::SHAVE
       @razors > 0
-    elsif rock?(nx, ny)
+    elsif rock?(nx, ny) || horock?(nx, ny)
       return false if dir == Direction::UP || dir == Direction::DOWN
       empty?(nx+dir.dx, ny)
     else
@@ -217,17 +227,32 @@ class Field
       (0...@width).each do |x|
         new_field[y][x] = @field[y][x] unless empty?(x, y)
         case @field[y][x]
-        when ROCK
+        when KIND_OF_ROCK
+          nx = nil
+          ny = nil
           if empty?(x, y+1)
             new_field[y][x] = SPACE
-            new_field[y+1][x] = ROCK
-          elsif rock?(x, y+1) || lambda?(x, y+1)
+            nx = x
+            ny = y+1
+          elsif kind_of_rock?(x, y+1) || lambda?(x, y+1)
             if empty?(x+1, y) && empty?(x+1, y+1)
               new_field[y][x] = SPACE
-              new_field[y+1][x+1] = ROCK
+              nx = x+1
+              ny = y+1
             elsif !lambda?(x, y+1) && empty?(x-1, y) && empty?(x-1, y+1)
               new_field[y][x] = SPACE
-              new_field[y+1][x-1] = ROCK
+              nx = x-1
+              ny = y+1
+            end
+          end
+          if nx && ny
+            if nx == @robot_x && ny == @robot_y-1
+              @lose = true
+            end
+            if horock?(x, y) && !empty?(nx, ny+1)
+              new_field[ny][nx] = LAMBDA
+            else
+              new_field[ny][nx] = @field[y][x]
             end
           end
         when BEARD
@@ -244,9 +269,9 @@ class Field
         end
       end
     end
-    if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
-      @lose = true
-    end
+    #if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
+    #  @lose = true
+    #end
     if @hp < 0
       @lose = true
     end
@@ -274,8 +299,9 @@ class Field
             end
           end
         end
-      elsif rock?(nx, ny)
-        @field[ny][nx+dir.dx] = ROCK
+        @razors -= 1
+      elsif rock?(nx, ny) || horock?(nx, ny)
+        @field[ny][nx+dir.dx] = @field[ny][nx]
       elsif lambda?(nx, ny)
         @lambda_count += 1
         @score += 25

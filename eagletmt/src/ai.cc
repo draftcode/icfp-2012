@@ -6,6 +6,7 @@
 #include <queue>
 #include <algorithm>
 #include <signal.h>
+#include <cstdlib>
 #include <boost/unordered_map.hpp>
 using namespace std;
 static const int INF = 10000000;
@@ -494,8 +495,6 @@ result dfs(const grid& gr, int depth)/*{{{*/
   return r;
 }/*}}}*/
 
-volatile bool sigint_received = false;
-
 pair<int, string> solve(grid gr, int max_depth)/*{{{*/
 {
   static const int DAMEPO = -1000;
@@ -503,7 +502,7 @@ pair<int, string> solve(grid gr, int max_depth)/*{{{*/
   ostringstream oss;
   string last_lambda;
   int last_total = 0;
-  while (!sigint_received) {
+  while (true) {
     if (gr.winning) {
       cout << "winning" << endl;
       break;
@@ -574,12 +573,20 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, ve
 
 void sigint_handler(int sig)/*{{{*/
 {
-  sigint_received = true;
+  exit(0);
 }/*}}}*/
+
+pair<int,string> final_answer(0, "A");
+void print_answer()
+{
+  cout << "Final score: " << final_answer.first << endl;
+  cout << final_answer.second << endl;
+}
 
 int main(int argc, char *argv[])/*{{{*/
 {
   signal(SIGINT, sigint_handler);
+  atexit(print_answer);
 
   vector<string> v;
   int water = 0, flooding = 0, waterproof = 10;
@@ -598,9 +605,8 @@ int main(int argc, char *argv[])/*{{{*/
     iss >> max_depth;
   }
   grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
-  pair<int,string> final_answer(0, "A");
   static const int MAX_DEPTH = 50;
-  while (!sigint_received && max_depth < MAX_DEPTH) {
+  while (max_depth < MAX_DEPTH) {
     cout << "Solving with max_depth=" << max_depth << endl;
     const pair<int,string> r = solve(g, max_depth);
     if (final_answer.first < r.first) {
@@ -608,8 +614,6 @@ int main(int argc, char *argv[])/*{{{*/
     }
     ++max_depth;
   }
-  cout << "Final score: " << final_answer.first << endl;
-  cout << final_answer.second << endl;
   return 0;
 }/*}}}*/
 
