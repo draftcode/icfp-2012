@@ -23,7 +23,7 @@ class Field
   attr_reader :score, :lambda_count, :lambda_max_count
   attr_reader :width, :height
   attr_reader :field
-  attr_reader :water_level, :flooding, :waterproof
+  attr_reader :water_level
   attr_reader :hp, :turn
   attr_reader :razors
 
