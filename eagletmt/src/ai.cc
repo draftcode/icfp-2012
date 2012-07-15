@@ -12,7 +12,7 @@ static const int INF = 10000000;
 static const int dx[] = {-1, 1, 0, 0, 0, 0};
 static const int dy[] = {0, 0, -1, 1, 0, 0};
 
-struct pos
+struct pos/*{{{*/
 {
   int x, y;
   pos() {}
@@ -30,9 +30,9 @@ size_t hash_value(const pos& p)
   boost::hash_combine(seed, p.x);
   boost::hash_combine(seed, p.y);
   return seed;
-}
+}/*}}}*/
 
-enum move_type {
+enum move_type {/*{{{*/
   LEFT,
   RIGHT,
   DOWN,
@@ -57,9 +57,9 @@ ostream& operator<<(ostream& os, move_type m)
       return os << "A";
   }
   throw __LINE__;
-}
+}/*}}}*/
 
-struct result
+struct result/*{{{*/
 {
   int score;
   move_type move;
@@ -72,7 +72,7 @@ struct result
 ostream& operator<<(ostream& os, const result& r)
 {
   return os << "<result move=" << r.move << ", score=" << r.score << ">";
-}
+}/*}}}*/
 
 static const int INVALID_MOVE = -1;
 static const int NO_DIFFERENCE = -2;
@@ -82,7 +82,7 @@ typedef result memo_value_type;
 typedef boost::unordered_map<memo_key_type, memo_value_type> memo_type;
 memo_type memo;
 
-struct trampoline
+struct trampoline/*{{{*/
 {
   char mark;
   pos from, to;
@@ -94,9 +94,9 @@ struct trampoline
 ostream& operator<<(ostream& os, const trampoline& t)
 {
   return os << "<trampoline mark=" << t.mark << ", from=" << t.from << ", to=" << t.to << ">";
-}
+}/*}}}*/
 
-struct grid
+struct grid/*{{{*/
 {
   int H, W;
   pos robot;
@@ -110,7 +110,7 @@ struct grid
 
   grid() {}
 
-  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec)
+  grid(const vector<string>& x, int water_, int flooding_, int waterproof_, const vector<pair<char,char> >& trampoline_spec)/*{{{*/
     : water(water_), flooding(flooding_), waterproof(waterproof_), hp(waterproof), water_turn(0)
   {
     v = x;
@@ -158,9 +158,9 @@ struct grid
       trampoline t(it->first, tramp_info[it->first], tramp_info[it->second]);
       trampolines.push_back(trampoline(it->first, tramp_info[it->first], tramp_info[it->second]));
     }
-  }
+  }/*}}}*/
 
-  memo_key_type key(int d) const
+  memo_key_type key(int d) const/*{{{*/
   {
     vector<string>& vv = const_cast<vector<string>&>(v);
     const char orig = vv[robot.y][robot.x];
@@ -168,9 +168,9 @@ struct grid
     memo_key_type k = make_pair(v, d);
     vv[robot.y][robot.x] = orig;
     return k;
-  }
+  }/*}}}*/
 
-  int move(move_type m)
+  int move(move_type m)/*{{{*/
   {
     const int i = static_cast<int>(m);
     robot.x += dx[i];
@@ -201,9 +201,9 @@ struct grid
     } else {
       return INVALID_MOVE;
     }
-  }
+  }/*}}}*/
 
-  bool valid(move_type m)
+  bool valid(move_type m)/*{{{*/
   {
     if (m == LEFT && v[robot.y][robot.x] == '*' && v[robot.y][robot.x-1] == ' ') {
       v[robot.y][robot.x-1] = '*';
@@ -223,19 +223,13 @@ struct grid
         || v[robot.y][robot.x] == '\\'
         || v[robot.y][robot.x] == 'O';
     }
-  }
+  }/*}}}*/
 
-  static bool is_trampoline(char c)
-  {
-    return 'A' <= c && c <= 'I';
-  }
+  static bool is_trampoline(char c) { return 'A' <= c && c <= 'I'; }
 
-  static bool is_target(char c)
-  {
-    return '1' <= c && c <= '9';
-  }
+  static bool is_target(char c) { return '1' <= c && c <= '9'; }
 
-  void jump_from(char t)
+  void jump_from(char t)/*{{{*/
   {
     trampoline tramp;
     for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
@@ -251,9 +245,9 @@ struct grid
         v[p.y][p.x] = ' ';
       }
     }
-  }
+  }/*}}}*/
 
-  void water_rise()
+  void water_rise()/*{{{*/
   {
     if (flooding == 0) {
       return;
@@ -263,9 +257,9 @@ struct grid
       ++water;
       water_turn = 0;
     }
-  }
+  }/*}}}*/
 
-  int update()
+  int update()/*{{{*/
   {
     vector<string> old(v);
     bool lambda_exists = false;
@@ -320,14 +314,11 @@ struct grid
       hp = waterproof;
     }
     return cnt;
-  }
+  }/*}}}*/
 
-  bool empty(char c, const pos& p) const
-  {
-    return c == ' ' && p != robot;
-  }
+  bool empty(char c, const pos& p) const { return c == ' ' && p != robot; }
 
-  int estimate() const
+  int estimate() const/*{{{*/
   {
     queue<pos> q;
     q.push(robot);
@@ -355,9 +346,9 @@ struct grid
       }
     }
     return ans;
-  }
+  }/*}}}*/
 
-  int heuristic() const
+  int heuristic() const/*{{{*/
   {
     const int base = W + H;
     int cost = 0;
@@ -387,9 +378,9 @@ struct grid
       }
     }
     return cost + collected_lambda*25 + 25*(total_lambda-dist_sum);
-  }
+  }/*}}}*/
 
-  void show(ostream& os) const
+  void show(ostream& os) const/*{{{*/
   {
     for (int i = H-1; i >= 0; i--) {
       for (int j = 0; j < W; j++) {
@@ -404,10 +395,10 @@ struct grid
       }
       os << endl;
     }
-  }
-};
+  }/*}}}*/
+};/*}}}*/
 
-result dfs(const grid& gr, int depth)
+result dfs(const grid& gr, int depth)/*{{{*/
 {
   result r = result::end();
   if (depth == 0) {
@@ -453,11 +444,11 @@ result dfs(const grid& gr, int depth)
   }
   memo.insert(make_pair(gr.key(depth), r));
   return r;
-}
+}/*}}}*/
 
 volatile bool sigint_received = false;
 
-string solve(grid gr, int max_depth)
+string solve(grid gr, int max_depth)/*{{{*/
 {
   static const int DAMEPO = -1000;
   int total = 0;
@@ -496,9 +487,9 @@ string solve(grid gr, int max_depth)
   }
   cout << "Total score: " << total << endl;
   return oss.str() + "A";
-}
+}/*}}}*/
 
-void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, istream& is)
+void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, istream& is)/*{{{*/
 {
   for (string s; getline(is, s);) {
     if (s.empty()) {
@@ -533,14 +524,14 @@ void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, ve
       //cerr << "Warning: unparsable: " << s << endl;
     }
   }
-}
+}/*}}}*/
 
-void sigint_handler(int sig)
+void sigint_handler(int sig)/*{{{*/
 {
   sigint_received = true;
-}
+}/*}}}*/
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[])/*{{{*/
 {
   signal(SIGINT, sigint_handler);
 
@@ -561,4 +552,6 @@ int main(int argc, char *argv[])
   grid g(v, water, flooding, waterproof, trampoline_spec);
   cout << solve(g, max_depth) << endl;
   return 0;
-}
+}/*}}}*/
+
+/* vim: set et sw=2 fdm=marker:*/
