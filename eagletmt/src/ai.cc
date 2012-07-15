@@ -156,7 +156,7 @@ struct grid/*{{{*/
     map<char, pos> tramp_info;
     for (int i = 0; i < H; i++) {
       for (int j = 0; j < W; j++) {
-        if (v[i][j] == '\\') {
+        if (v[i][j] == '\\' || v[i][j] == '@') {
           ++total_lambda;
         } else if (is_trampoline(v[i][j]) || is_target(v[i][j])) {
           tramp_info.insert(make_pair(v[i][j], pos(j, i)));
@@ -261,6 +261,8 @@ struct grid/*{{{*/
 
   static bool is_target(char c) { return '1' <= c && c <= '9'; }
 
+  static bool is_rock_like(char c) { return c == '*' || c == '@'; }
+
   void jump_from(char t)/*{{{*/
   {
     trampoline tramp;
@@ -305,35 +307,45 @@ struct grid/*{{{*/
     int cnt = 0;
     for (int y = 0; y < H; y++) {
       for (int x = 0; x < W; x++) {
-        if (old[y][x] == '\\') {
+        if (old[y][x] == '\\' || old[y][x] == '@') {
           lambda_exists = true;
         }
 
-        if (old[y][x] == '*') {
+        if (is_rock_like(old[y][x])) {
+          int xx = -1, yy = -1;
           if (empty(old[y-1][x], pos(x, y-1))) {
             v[y][x] = ' ';
-            v[y-1][x] = '*';
+            xx = x;
+            yy = y-1;
             ++cnt;
             if (robot == pos(x, y-2)) {
               losing = true;
             }
-          } else if ((old[y-1][x] == '*' || old[y-1][x] == '\\')
+          } else if ((is_rock_like(old[y-1][x]) || old[y-1][x] == '\\')
               && empty(old[y][x+1], pos(x+1, y))
               && empty(old[y-1][x+1], pos(x+1, y-1))) {
             v[y][x] = ' ';
-            v[y-1][x+1] = '*';
+            xx = x+1;
+            yy = y-1;
             ++cnt;
             if (robot == pos(x+1, y-2)) {
               losing = true;
             }
-          } else if (old[y-1][x] == '*'
+          } else if (is_rock_like(old[y-1][x])
               && empty(old[y][x-1], pos(x-1, y))
               && empty(old[y-1][x-1], pos(x-1, y-1))) {
             v[y][x] = ' ';
-            v[y-1][x-1] = '*';
+            xx = x-1;
+            yy = y-1;
             ++cnt;
             if (robot == pos(x-1, y-2)) {
               losing = true;
+            }
+          }
+          if (xx != -1 && yy != -1) {
+            v[yy][xx] = old[y][x];
+            if (v[yy][xx] == '@' && !empty(old[yy-1][xx], pos(xx, yy-1))) {
+              v[yy][xx] = '\\';
             }
           }
         } else if (old[y][x] == 'W') {
