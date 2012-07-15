@@ -377,7 +377,7 @@ struct grid/*{{{*/
       const pos p = q.front();
       q.pop();
       if (v[p.y][p.x] == '\\') {
-        ans = min(ans, dist[p.y][p.x]);
+        return dist[p.y][p.x];
       } else if (v[p.y][p.x] == 'O') {
         return dist[p.y][p.x];
       }
