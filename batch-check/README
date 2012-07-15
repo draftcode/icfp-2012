@@ -1,0 +1,22 @@
+usage: batch-check.py [-h] [--pattern PATTERN] [--no-beard] [--no-trampoline]
+                      [--no-flood] [--no-default] [--no-10]
+                      lifter
+
+positional arguments:
+  lifter
+
+optional arguments:
+  -h, --help         show this help message and exit
+  --pattern PATTERN
+  --no-beard
+  --no-trampoline
+  --no-flood
+  --no-default
+  --no-10
+
+example: ./batch-check.py --pattern maze ../eagletmt/lifter
+example: ./batch-check.py --pattern flood "../eagletmt/lifter @ 15"
+
+lifterの@はマップファイルのパスに置き換わります。
+lifterと同じディレクトリに、記録用のファイルが生成されます。
+
