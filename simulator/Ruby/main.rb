@@ -4,8 +4,8 @@ require_relative 'lib/field.rb'
 require 'optparse'
 
 KEYBIND = {
-  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT},
-  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT}
+  :normal => {'U' => Direction::UP, 'D' => Direction::DOWN, 'L' => Direction::LEFT, 'R' => Direction::RIGHT, 'W' => Direction::WAIT, 'S' => Direction::SHAVE},
+  :vim => {'H' => Direction::LEFT, 'J' => Direction::DOWN, 'K' => Direction::UP, 'L' => Direction::RIGHT, 'W' => Direction::WAIT, 'S' => Direction::SHAVE}
 }.freeze
 mode = :normal
 game_mode = false
@@ -40,6 +40,10 @@ File.open(ARGV[0]) do |f|
     when /Trampoline (.) targets (.)/
       metadata[:trampoline] ||= {}
       metadata[:trampoline][$1] = $2.to_i
+    when /Growth (\d+)/
+      metadata[:growth] = $1.to_i
+    when /Razors (\d+)/
+      metadata[:razors] = $1.to_i
     else
       puts "Unknown metadata: #{line}"
     end
@@ -88,16 +92,9 @@ catch(:end) {
       next_field.update!
 
       field = next_field
-      puts "Score: #{field.score} / aborted #{field.aborted_score}"
-      puts "HP:#{field.hp}"
-      if metadata.fetch(:flooding, nil)
-        puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
-      else
-        puts "Water never rise"
-      end
       puts field
       puts ""
-
+      
       if field.win
         puts "Win!"
         puts "Score: #{field.score}"
