@@ -429,7 +429,7 @@ struct grid/*{{{*/
 
   void show(ostream& os) const/*{{{*/
   {
-    os << "[Razors = " << razors << "]" << endl;
+    os << "[Razors = " << razors << ", Growth = " << beard_turn << "/" << growth_rate << "]" << endl;
     for (int i = H-1; i >= 0; i--) {
       for (int j = 0; j < W; j++) {
         if (robot == pos(j, i)) {
