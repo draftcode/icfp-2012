@@ -76,7 +76,7 @@ class Field
     @height = @field.size
 
     # λの総個数をカウント
-    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)}
+    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)+row.count(HOROCK)}
     @lambda_count = 0
 
     # トランポリンの列挙(トランポリンの削除に使う)とトランポリンの目的地テーブルの作成
@@ -299,6 +299,7 @@ class Field
             end
           end
         end
+        @razors -= 1
       elsif rock?(nx, ny) || horock?(nx, ny)
         @field[ny][nx+dir.dx] = @field[ny][nx]
       elsif lambda?(nx, ny)
