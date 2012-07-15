@@ -57,6 +57,7 @@ def get_command(lifter, map_path, timeout=150):
             if time.time() - start_time >= timeout:
                 p.send_signal(signal.SIGINT)
                 break
+            time.sleep(0.1)
     except KeyboardInterrupt as e:
         p.send_signal(signal.SIGINT)
     p.wait()

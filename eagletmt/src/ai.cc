@@ -599,7 +599,8 @@ int main(int argc, char *argv[])/*{{{*/
   }
   grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
   pair<int,string> final_answer(0, "A");
-  while (!sigint_received) {
+  static const int MAX_DEPTH = 50;
+  while (!sigint_received && max_depth < MAX_DEPTH) {
     cout << "Solving with max_depth=" << max_depth << endl;
     const pair<int,string> r = solve(g, max_depth);
     if (final_answer.first < r.first) {
