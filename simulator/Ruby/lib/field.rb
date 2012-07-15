@@ -10,6 +10,7 @@ class Direction
   UP = Direction.new(0, -1, :U)
   DOWN = Direction.new(0, 1, :D)
   WAIT = Direction.new(0, 0, :W)
+  SHAVE = Direction.new(0, 0, :S)
 
   class <<self
     private :new
@@ -18,18 +19,28 @@ end
 
 class Field
   attr_reader :robot_x, :robot_y
-  attr_reader :win, :lose
+  attr_reader :win, :lose, :aborted
   attr_reader :score, :lambda_count, :lambda_max_count
   attr_reader :width, :height
   attr_reader :field
   attr_reader :water_level, :flooding, :waterproof
   attr_reader :hp, :turn
+  attr_reader :razors
 
-  CHAR_TO_SYM = {'#' => :wall, '*' => :rock, ' ' => :space, '\\' => :lambda, 'L' => :lift, 'R' => :robot, '.' => :earth}.freeze
-  SYM_TO_CHAR = CHAR_TO_SYM.invert.freeze
-  SYM_TO_NUM = {}
-  CHAR_TO_SYM.values.each_with_index do |sym,idx|
-    SYM_TO_NUM[sym] = idx
+  WALL = '#'
+  ROCK = '*'
+  SPACE = ' '
+  LAMBDA = '\\'
+  LIFT = 'L'
+  ROBOT = 'R'
+  EARTH = '.'
+  TRAMPOLINE = /[A-I]/
+  TARGET = /\d/
+  BEARD = 'W'
+  RAZOR = '!'
+  
+  def self.metadata=(hash)
+    @@metadata = {:water => 0, :flooding => 0, :waterproof => 10, :growth => 25, :razors => 0}.merge(hash).freeze
   end
 
   def initialize(*args)
@@ -40,42 +51,64 @@ class Field
     end
   end
 
-  def new_one(str_map, opt)
+  def new_one(str_map)
     @turn = 0
     @lambda_count = 0
     @field = str_map.map do |row|
-      row.each_char.map{|ch| CHAR_TO_SYM[ch]}
+      row.each_char.to_a
     end
+
+    # 矩形化して番兵を置く．
     @width = @field.map{|row| row.size}.max
     @field.map! do |row|
       if row.size < @width
-        rem = [:space] * (@width-row.size)
+        rem = [SPACE] * (@width-row.size)
         row.push(*rem)
       end
-      row.unshift(:wall)
-      row.push(:wall)
+      row.unshift(WALL)
+      row.push(WALL)
     end
     @width += 2
-    @field.unshift([:wall]*@width)
-    @field.push([:wall]*@width)
+    @field.unshift([WALL]*@width)
+    @field.push([WALL]*@width)
     @height = @field.size
 
-    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(:lambda)}
+    # λの総個数をカウント
+    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)}
     @lambda_count = 0
+
+    # トランポリンの列挙(トランポリンの削除に使う)とトランポリンの目的地テーブルの作成
+    @@trampolines = []
+    @@trampoline_targets = {}
     @field.each_with_index do |row,y|
-      idx = row.index(:robot)
+      row.each_with_index do |ch,x|
+        if TRAMPOLINE === ch
+          @@trampolines << [x,y]
+        elsif TARGET === ch
+          @@trampoline_targets[ch.to_i] = [x,y]
+        end
+      end
+    end
+    @@trampolines.freeze
+    @@trampoline_targets.freeze
+
+    # 初期状態
+    @field.each_with_index do |row,y|
+      idx = row.index(ROBOT)
       if idx
         @robot_x = idx
         @robot_y = y
       end
     end
-    @win = @lose = false
+    @win = @lose = @aborted = false
     @score = 0
 
-    param = {:water => 0, :flooding => 0, :waterproof => 10}.merge(opt)
-    @water_level = @height - param[:water] - 1
-    @flooding = param[:flooding] 
-    @hp = @waterproof = param[:waterproof]
+    # Floodingの設定
+    @water_level = @height - @@metadata[:water] - 1
+    @hp = @@metadata[:waterproof]
+
+    # Beardの設定
+    @razors = @@metadata[:razors]
   end
   private :new_one
 
@@ -85,16 +118,16 @@ class Field
     @robot_y = obj.robot_y
     @win = obj.win
     @lose = obj.lose
+    @aborted = obj.aborted
     @score = obj.score
     @lambda_count = obj.lambda_count
     @lambda_max_count = obj.lambda_max_count
     @width = obj.width
     @height = obj.height
     @water_level = obj.water_level
-    @flooding = obj.flooding
-    @waterproof = obj.waterproof
     @hp = obj.hp
     @turn = obj.turn
+    @razors = obj.razors
   end
 
   def lift_opened?
@@ -107,41 +140,60 @@ class Field
   end
 
   def empty?(x, y)
-    in_grid?(x, y) && @field[y][x] == :space
+    in_grid?(x, y) && @field[y][x] == SPACE
   end
 
   def rock?(x, y, field=@field)
-    in_grid?(x, y) && field[y][x] == :rock
+    in_grid?(x, y) && field[y][x] == ROCK
   end
 
   def lambda?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lambda
+    in_grid?(x, y) && @field[y][x] == LAMBDA
   end
 
   def wall?(x, y)
-    in_grid?(x, y) && @field[y][x] == :wall
+    in_grid?(x, y) && @field[y][x] == WALL
   end
 
   def lift?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lift
+    in_grid?(x, y) && @field[y][x] == LIFT
+  end
+
+  def trampoline?(x, y)
+    in_grid?(x, y) && TRAMPOLINE === @field[y][x]
+  end
+
+  def target?(x, y)
+    in_grid?(x, y) && TARGET === @field[y][x]
   end
 
   def closed_lift?(x, y)
-    in_grid?(x, y) && !lift_opened? && @field[y][x] == :lift
+    in_grid?(x, y) && !lift_opened? && @field[y][x] == LIFT
   end
 
   def opened_lift?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lift && lift_opened?
+    in_grid?(x, y) && @field[y][x] == LIFT && lift_opened?
+  end
+
+  def beard?(x, y)
+    in_grid?(x, y) && @field[y][x] == BEARD
+  end
+
+  def razor?(x, y)
+    in_grid?(x, y) && @field[y][x] == RAZOR
   end
 
   def valid_move?(dir)
     nx = @robot_x + dir.dx
     ny = @robot_y + dir.dy
-    if rock?(nx, ny)
+    if dir == Direction::SHAVE
+      @razors > 0
+    elsif rock?(nx, ny)
       return false if dir == Direction::UP || dir == Direction::DOWN
       empty?(nx+dir.dx, ny)
     else
-      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny)
+      # trampoline target は壁(FAQより)
+      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny) && !target?(nx, ny) && !beard?(nx, ny)
     end
   end
 
@@ -150,28 +202,39 @@ class Field
     if @robot_y >= @water_level
       @hp -= 1
     else
-      @hp = @waterproof
+      @hp = @@metadata[:waterproof]
     end
-    if @flooding > 0 && @turn % @flooding == 0
+    if @@metadata[:flooding] > 0 && @turn % @@metadata[:flooding] == 0
       @water_level -= 1
     end
 
-    new_field = Array.new(@height){Array.new(@width, :space)}
+    new_field = Array.new(@height){Array.new(@width, SPACE)}
     (0...@height).reverse_each do |y|
       (0...@width).each do |x|
         new_field[y][x] = @field[y][x]
         case @field[y][x]
-        when :rock
+        when ROCK
           if empty?(x, y+1)
-            new_field[y][x] = :space
-            new_field[y+1][x] = :rock
+            new_field[y][x] = SPACE
+            new_field[y+1][x] = ROCK
           elsif rock?(x, y+1) || lambda?(x, y+1)
             if empty?(x+1, y) && empty?(x+1, y+1)
-              new_field[y][x] = :space
-              new_field[y+1][x+1] = :rock
+              new_field[y][x] = SPACE
+              new_field[y+1][x+1] = ROCK
             elsif !lambda?(x, y+1) && empty?(x-1, y) && empty?(x-1, y+1)
-              new_field[y][x] = :space
-              new_field[y+1][x-1] = :rock
+              new_field[y][x] = SPACE
+              new_field[y+1][x-1] = ROCK
+            end
+          end
+        when BEARD
+          if @turn % @@metadata[:growth] == 0
+            (-1..1).each do |dy|
+              check_y = y+dy
+              (-1..1).each do |dx|
+                check_x = x+dx
+                next if dy == 0 && dx == 0
+                new_field[check_y][check_x] = BEARD if empty?(check_x, check_y)
+              end
             end
           end
         end
@@ -197,17 +260,40 @@ class Field
     nx = @robot_x + dir.dx
     ny = @robot_y + dir.dy
     if valid_move?(dir)
-      if rock?(nx, ny)
-        @field[ny][nx+dir.dx] = :rock
+      if dir == Direction::SHAVE
+        (-1..1).each do |dy|
+          check_y = ny+dy
+          (-1..1).each do |dx|
+            check_x = nx+dx
+            if beard?(check_x, check_y)
+              @field[check_y][check_x] = SPACE
+            end
+          end
+        end
+      elsif rock?(nx, ny)
+        @field[ny][nx+dir.dx] = ROCK
       elsif lambda?(nx, ny)
         @lambda_count += 1
         @score += 25
+      elsif trampoline?(nx, ny)
+        target = @@metadata[:trampoline][@field[ny][nx]]
+        # 同じターゲットを参照しているトランポリンは即座に消える．
+        @@trampolines.each do |pos|
+          x, y = pos
+          if @@metadata[:trampoline][@field[y][x]] == target
+            @field[y][x] = SPACE
+          end
+        end
+        x, y = @@trampoline_targets[target]
+        nx, ny = x, y if TARGET === @field[y][x]
       elsif opened_lift?(nx, ny)
         @win = true
         @score += 50*@lambda_count
+      elsif razor?(nx, ny)
+        @razors += 1
       end
-      @field[@robot_y][@robot_x] = :space
-      @field[ny][nx] = :robot
+      @field[@robot_y][@robot_x] = SPACE
+      @field[ny][nx] = ROBOT
       @robot_x, @robot_y = nx, ny
     end
     @score -= 1
@@ -221,6 +307,7 @@ class Field
 
   def abort!
     @score += 25*@lambda_count
+    @aborted = true
   end
 
   def aborted_score
@@ -228,9 +315,14 @@ class Field
   end
 
   def to_s
-    m = @field.map{|row| row.map{|sym| SYM_TO_CHAR[sym]}.join}
-    m[@water_level] << "<- water"
-    m.join("\n")
+    flood_str = @@metadata[:flooding] != 0 ?
+      "#{@turn % @@metadata[:flooding]}/#{@@metadata[:flooding]}" :
+      "Water never rise"
+    str = "Score: #{@score} / aborted #{aborted_score}\n"
+    str << "Next Growth: #{@turn % @@metadata[:growth]}/#{@@metadata[:growth]} Razors: #{@razors}\n"
+    m = @field.map{|row| row.join}
+    m[@water_level] << "~~~ (HP #{@hp})~~~ #{flood_str}"
+    str << m.join("\n")
   end
 
   def dup
@@ -238,7 +330,6 @@ class Field
   end
 
   def hash
-    #@field.map{|row| row.map{|sym| SYM_TO_NUM[sym]}}.hash
     @field.hash
   end
 
