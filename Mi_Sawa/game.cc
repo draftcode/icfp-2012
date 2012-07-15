@@ -25,6 +25,11 @@ struct pos/*{{{*/
   pos(int i, int j) : x(i), y(j) {}
   bool operator==(const pos& p) const { return x == p.x && y == p.y; }
   bool operator!=(const pos& p) const { return !(*this == p); }
+  int dist(const pos& p){ return abs(x-p.x) + abs(y-p.y);}
+  pos operator+(const move_type m){
+    const int i = static_cast<int>(m);
+    return pos(x + dx(i), y + dy(i));
+  }
 };
 ostream& operator<<(ostream& os, const pos& p)
 {
@@ -81,6 +86,11 @@ struct result/*{{{*/
       move.push_front(m);
       return *this;
   }
+  result append(int s, move_type m){
+    score += s;
+    move.push_back(m);
+    return *this;
+  }
   bool operator<(const result& r) const { return score < r.score; }
 };
 ostream& operator<<(ostream& os, const result& r)
@@ -118,6 +128,7 @@ struct grid/*{{{*/
   vector<trampoline> trampolines;
   int growth_rate, beard_turn;
   int razors;
+
 
   grid() {}
 
@@ -438,6 +449,11 @@ struct grid/*{{{*/
       os << endl;
     }
   }/*}}}*/
+
+  bool operator<(const grid& g) const { return collected_lambda < g.collected_lambda; }
+
+  bool in_grid(const pos & p) const {
+  }
 };/*}}}*/
 
 #endif
