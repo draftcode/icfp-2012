@@ -47,10 +47,13 @@ def get_command(lifter, map_path, timeout=150):
     fcntl.fcntl(p.stdout, fcntl.F_SETFL, fl | os.O_NONBLOCK)
     try:
         while p.poll() is None:
-            out += p.stdout.read()
-            sp = out.split()
-            if len(sp) != 0:
-                out = sp[-1]
+            try:
+                out += p.stdout.read()
+                sp = out.split()
+                if len(sp) != 0:
+                    out = sp[-1]
+            except:
+                pass
             if time.time() - start_time >= timeout:
                 p.send_signal(signal.SIGINT)
                 break
