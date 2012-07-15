@@ -38,15 +38,16 @@ File.open(ARGV[0]) do |f|
     when /Waterproof\s+(\d+)/
       metadata[:waterproof] = $1.to_i
     when /Trampoline (.) targets (.)/
-      trampoline_spec[$1] = $2.to_i
+      metadata[:trampoline] ||= {}
+      metadata[:trampoline][$1] = $2.to_i
     else
       puts "Unknown metadata: #{line}"
     end
   end
 end
 
-Field.trampoline_spec = trampoline_spec
-field = Field.new(str_map, metadata)
+Field.metadata = trampoline_spec
+field = Field.new(str_map)
 history = []
 puts field
 puts "Press A to terminate"
@@ -89,7 +90,7 @@ catch(:end) {
       field = next_field
       puts "Score: #{field.score} / aborted #{field.aborted_score}"
       puts "HP:#{field.hp}"
-      if field.flooding > 0
+      if metadata.fetch(:flooding, nil)
         puts "Next water rising: #{field.turn%field.flooding}/#{field.flooding}"
       else
         puts "Water never rise"
