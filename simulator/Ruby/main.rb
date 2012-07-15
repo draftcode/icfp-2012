@@ -83,12 +83,20 @@ loop do
           next_field.abort!
           history << [field,:A]
         when '<'
-          puts "Undo!"
-          field = history.pop.first
+          if history.empty?
+            puts "It's initial state!"
+          else
+            puts "Undo!"
+            field = history.pop.first
+          end
           puts field
           next
         else
           dir = KEYBIND[key_mode][ch]
+          if field.win || field.lose
+            puts "plese Undo or Abort"
+            next
+          end
           if dir
             if !next_field.valid_move?(dir)
               report "Invalid move. Ignored."
