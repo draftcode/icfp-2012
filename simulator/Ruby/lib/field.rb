@@ -25,14 +25,23 @@ class Field
   attr_reader :water_level, :flooding, :waterproof
   attr_reader :hp, :turn
 
-  CHAR_TO_SYM = {'#' => :wall, '*' => :rock, ' ' => :space, '\\' => :lambda, 'L' => :lift, 'R' => :robot, '.' => :earth}.freeze
-  SYM_TO_CHAR = CHAR_TO_SYM.invert.freeze
-  SYM_TO_NUM = {}
-  CHAR_TO_SYM.values.each_with_index do |sym,idx|
-    SYM_TO_NUM[sym] = idx
+  WALL = '#'
+  ROCK = '*'
+  SPACE = ' '
+  LAMBDA = '\\'
+  LIFT = 'L'
+  ROBOT = 'R'
+  EARTH = '.'
+  TRAMPOLINE = /[A-I]/
+  TARGET = /\d/
+  
+  def self.trampoline_spec=(hash)
+    puts hash
+    @@trampoline_spec = hash.dup.freeze
   end
 
   def initialize(*args)
+    @@trampoline_spec ||= {}
     if args.size == 1 && args.first.class == Field
       clone_from(args.first)
     else
@@ -44,26 +53,45 @@ class Field
     @turn = 0
     @lambda_count = 0
     @field = str_map.map do |row|
-      row.each_char.map{|ch| CHAR_TO_SYM[ch]}
+      row.each_char.to_a
     end
+
+    # 矩形化して番兵を置く．
     @width = @field.map{|row| row.size}.max
     @field.map! do |row|
       if row.size < @width
-        rem = [:space] * (@width-row.size)
+        rem = [SPACE] * (@width-row.size)
         row.push(*rem)
       end
-      row.unshift(:wall)
-      row.push(:wall)
+      row.unshift(WALL)
+      row.push(WALL)
     end
     @width += 2
-    @field.unshift([:wall]*@width)
-    @field.push([:wall]*@width)
+    @field.unshift([WALL]*@width)
+    @field.push([WALL]*@width)
     @height = @field.size
 
-    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(:lambda)}
+    # λの総個数をカウント
+    @lambda_max_count = @field.inject(0){|acc,row| acc+row.count(LAMBDA)}
     @lambda_count = 0
+
+    # トランポリンの列挙(トランポリンの削除に使う)とトランポリンの目的地テーブルの作成
+    @@trampolines = []
+    @@trampoline_targets = {}
     @field.each_with_index do |row,y|
-      idx = row.index(:robot)
+      row.each_with_index do |ch,x|
+        if TRAMPOLINE === ch
+          @@trampolines << [x,y]
+        elsif TARGET === ch
+          @@trampoline_targets[ch.to_i] = [x,y]
+        end
+      end
+    end
+    @@trampoline_targets.freeze
+
+    # 初期状態
+    @field.each_with_index do |row,y|
+      idx = row.index(ROBOT)
       if idx
         @robot_x = idx
         @robot_y = y
@@ -107,31 +135,39 @@ class Field
   end
 
   def empty?(x, y)
-    in_grid?(x, y) && @field[y][x] == :space
+    in_grid?(x, y) && @field[y][x] == SPACE
   end
 
   def rock?(x, y, field=@field)
-    in_grid?(x, y) && field[y][x] == :rock
+    in_grid?(x, y) && field[y][x] == ROCK
   end
 
   def lambda?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lambda
+    in_grid?(x, y) && @field[y][x] == LAMBDA
   end
 
   def wall?(x, y)
-    in_grid?(x, y) && @field[y][x] == :wall
+    in_grid?(x, y) && @field[y][x] == WALL
   end
 
   def lift?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lift
+    in_grid?(x, y) && @field[y][x] == LIFT
+  end
+
+  def trampoline?(x, y)
+    in_grid?(x, y) && TRAMPOLINE === @field[y][x]
+  end
+
+  def target?(x, y)
+    in_grid?(x, y) && TARGET === @field[y][x]
   end
 
   def closed_lift?(x, y)
-    in_grid?(x, y) && !lift_opened? && @field[y][x] == :lift
+    in_grid?(x, y) && !lift_opened? && @field[y][x] == LIFT
   end
 
   def opened_lift?(x, y)
-    in_grid?(x, y) && @field[y][x] == :lift && lift_opened?
+    in_grid?(x, y) && @field[y][x] == LIFT && lift_opened?
   end
 
   def valid_move?(dir)
@@ -141,7 +177,8 @@ class Field
       return false if dir == Direction::UP || dir == Direction::DOWN
       empty?(nx+dir.dx, ny)
     else
-      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny)
+      # trampoline target は壁(FAQより)
+      in_grid?(nx, ny) && !wall?(nx, ny) && !closed_lift?(nx, ny) && !target?(nx, ny)
     end
   end
 
@@ -156,22 +193,22 @@ class Field
       @water_level -= 1
     end
 
-    new_field = Array.new(@height){Array.new(@width, :space)}
+    new_field = Array.new(@height){Array.new(@width, SPACE)}
     (0...@height).reverse_each do |y|
       (0...@width).each do |x|
         new_field[y][x] = @field[y][x]
         case @field[y][x]
-        when :rock
+        when ROCK
           if empty?(x, y+1)
-            new_field[y][x] = :space
-            new_field[y+1][x] = :rock
+            new_field[y][x] = SPACE
+            new_field[y+1][x] = ROCK
           elsif rock?(x, y+1) || lambda?(x, y+1)
             if empty?(x+1, y) && empty?(x+1, y+1)
-              new_field[y][x] = :space
-              new_field[y+1][x+1] = :rock
+              new_field[y][x] = SPACE
+              new_field[y+1][x+1] = ROCK
             elsif !lambda?(x, y+1) && empty?(x-1, y) && empty?(x-1, y+1)
-              new_field[y][x] = :space
-              new_field[y+1][x-1] = :rock
+              new_field[y][x] = SPACE
+              new_field[y+1][x-1] = ROCK
             end
           end
         end
@@ -198,16 +235,27 @@ class Field
     ny = @robot_y + dir.dy
     if valid_move?(dir)
       if rock?(nx, ny)
-        @field[ny][nx+dir.dx] = :rock
+        @field[ny][nx+dir.dx] = ROCK
       elsif lambda?(nx, ny)
         @lambda_count += 1
         @score += 25
+      elsif trampoline?(nx, ny)
+        target = @@trampoline_spec[@field[ny][nx]]
+        # 同じターゲットを参照しているトランポリンは即座に消える．
+        @@trampolines.each do |pos|
+          x, y = pos
+          if @@trampoline_spec[@field[y][x]] == target
+            @field[y][x] = SPACE
+          end
+        end
+        x, y = @@trampoline_targets[target]
+        nx, ny = x, y if TARGET === @field[y][x]
       elsif opened_lift?(nx, ny)
         @win = true
         @score += 50*@lambda_count
       end
-      @field[@robot_y][@robot_x] = :space
-      @field[ny][nx] = :robot
+      @field[@robot_y][@robot_x] = SPACE
+      @field[ny][nx] = ROBOT
       @robot_x, @robot_y = nx, ny
     end
     @score -= 1
@@ -228,7 +276,7 @@ class Field
   end
 
   def to_s
-    m = @field.map{|row| row.map{|sym| SYM_TO_CHAR[sym]}.join}
+    m = @field.map{|row| row.join}
     m[@water_level] << "<- water"
     m.join("\n")
   end
@@ -238,7 +286,6 @@ class Field
   end
 
   def hash
-    #@field.map{|row| row.map{|sym| SYM_TO_NUM[sym]}}.hash
     @field.hash
   end
 
