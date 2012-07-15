@@ -215,7 +215,7 @@ class Field
     new_field = Array.new(@height){Array.new(@width, SPACE)}
     (0...@height).reverse_each do |y|
       (0...@width).each do |x|
-        new_field[y][x] = @field[y][x]
+        new_field[y][x] = @field[y][x] unless empty?(x, y)
         case @field[y][x]
         when ROCK
           if empty?(x, y+1)
