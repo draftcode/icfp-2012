@@ -496,7 +496,7 @@ result dfs(const grid& gr, int depth)/*{{{*/
 
 volatile bool sigint_received = false;
 
-string solve(grid gr, int max_depth)/*{{{*/
+pair<int, string> solve(grid gr, int max_depth)/*{{{*/
 {
   static const int DAMEPO = -1000;
   int total = 0;
@@ -511,7 +511,6 @@ string solve(grid gr, int max_depth)/*{{{*/
       cout << "losing" << endl;
       break;
     }
-    --total;
     const result r = dfs(gr, max_depth);
     cout << r << endl;
     oss << r.move;
@@ -520,6 +519,7 @@ string solve(grid gr, int max_depth)/*{{{*/
       break;
     }
     const int t = gr.move(r.move);
+    --total;
     total += t;
     if (t > 0) {
       last_lambda = oss.str();
@@ -528,13 +528,13 @@ string solve(grid gr, int max_depth)/*{{{*/
     if (total < DAMEPO) {
       cout << "Rollback & Abort" << endl;
       cout << "Total score: " << last_total << endl;
-      return last_lambda + "A";
+      return make_pair(last_total, last_lambda + "A");
     }
     cout << "Current total: " << total << endl;
     gr.show(cout);
   }
   cout << "Total score: " << total << endl;
-  return oss.str() + "A";
+  return make_pair(total, oss.str() + "A");
 }/*}}}*/
 
 void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, int& growth_rate, int& razors, istream& is)/*{{{*/
@@ -592,13 +592,23 @@ int main(int argc, char *argv[])/*{{{*/
     ifstream ifs(argv[1]);
     readlines(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors, ifs);
   }
-  int max_depth = 10;
+  int max_depth = 5;
   if (argc > 2) {
     istringstream iss(argv[2]);
     iss >> max_depth;
   }
   grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
-  cout << solve(g, max_depth) << endl;
+  pair<int,string> final_answer(0, "A");
+  while (!sigint_received) {
+    cout << "Solving with max_depth=" << max_depth << endl;
+    const pair<int,string> r = solve(g, max_depth);
+    if (final_answer.first < r.first) {
+      final_answer = r;
+    }
+    ++max_depth;
+  }
+  cout << "Final score: " << final_answer.first << endl;
+  cout << final_answer.second << endl;
   return 0;
 }/*}}}*/
 
