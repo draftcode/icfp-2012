@@ -370,7 +370,7 @@ struct grid/*{{{*/
           ++cnt;
         }
         if (xx != -1 && yy != -1) {
-          if (v[yy][xx] == '@' && !empty(old[yy+1][xx], pos(xx, yy-1))) {
+          if (old[y][x] == '@' && !empty(old[yy-1][xx], pos(xx, yy-1))) {
             v[yy][xx] = '\\';
           } else {
             v[yy][xx] = old[y][x];
