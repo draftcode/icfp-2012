@@ -557,23 +557,6 @@ result dfs(const grid& gr, int depth)/*{{{*/
       r = max(r, result(t - 1 + u.score, m));
     }
   }
-  if (r.score == 0) {
-    int a = INF;
-    for (int i = 0; i < ABORT; i++) {
-      const move_type m = static_cast<move_type>(i);
-      g = gr;
-      const int t = g.move(m);
-      if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
-        continue;
-      }
-      //const int e = g.heuristic();
-      const int e = g.estimate();
-      if (e < a) {
-        a = e;
-        r = result(0, m);
-      }
-    }
-  }
   memo.insert(make_pair(gr.key(depth), r));
   return r;
 }/*}}}*/
@@ -592,7 +575,24 @@ void solve(grid gr, int max_depth)/*{{{*/
       cout << "losing" << endl;
       break;
     }
-    const result r = dfs(gr, max_depth);
+    result r = dfs(gr, max_depth);
+    if (r.score == 0) {
+      int a = INF;
+      for (int i = 0; i < ABORT; i++) {
+        const move_type m = static_cast<move_type>(i);
+        grid g = gr;
+        const int t = g.move(m);
+        if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
+          continue;
+        }
+        //const int e = g.heuristic();
+        const int e = g.estimate();
+        if (e < a) {
+          a = e;
+          r = result(0, m);
+        }
+      }
+    }
     cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
