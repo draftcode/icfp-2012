@@ -458,6 +458,28 @@ struct grid/*{{{*/
   }/*}}}*/
 };/*}}}*/
 
+result decide_by_estimate(const grid& gr)/*{{{*/
+{
+  result r = result::end();
+  int a = INF;
+  grid g;
+  for (int i = 0; i < ABORT; i++) {
+    const move_type m = static_cast<move_type>(i);
+    g = gr;
+    const int t = g.move(m);
+    if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
+      continue;
+    }
+    //const int e = g.heuristic();
+    const int e = g.estimate();
+    if (e < a) {
+      a = e;
+      r = result(0, m);
+    }
+  }
+  return r;
+}/*}}}*/
+
 result dfs(const grid& gr, int depth)/*{{{*/
 {
   result r = result::end();
@@ -486,21 +508,7 @@ result dfs(const grid& gr, int depth)/*{{{*/
     }
   }
   if (r.score == 0) {
-    int a = INF;
-    for (int i = 0; i < ABORT; i++) {
-      const move_type m = static_cast<move_type>(i);
-      g = gr;
-      const int t = g.move(m);
-      if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
-        continue;
-      }
-      //const int e = g.heuristic();
-      const int e = g.estimate();
-      if (e < a) {
-        a = e;
-        r = result(0, m);
-      }
-    }
+    r = decide_by_estimate(gr);
   }
   memo.insert(make_pair(gr.key(depth), r));
   return r;
@@ -521,7 +529,13 @@ pair<int, string> solve(grid gr, int max_depth)/*{{{*/
       cout << "losing" << endl;
       break;
     }
-    const result r = dfs(gr, max_depth);
+    const int nearest_lambda = gr.estimate();
+    result r = result::end();
+    if (nearest_lambda > max_depth) {
+      r = decide_by_estimate(gr);
+    } else {
+      r = dfs(gr, max_depth);
+    }
     cout << r << endl;
     oss << r.move;
     if (r.move == ABORT) {
