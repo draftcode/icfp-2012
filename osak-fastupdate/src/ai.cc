@@ -8,13 +8,17 @@
 #include <signal.h>
 #include <cstdlib>
 #include <boost/unordered_map.hpp>
-#include <boost/unordered_set.hpp>
 using namespace std;
 static const int INF = 10000000;
 static const int dx[] = {-1, 1, 0, 0, 0, 0, 0};
 static const int dy[] = {0, 0, -1, 1, 0, 0, 0};
 static const int dx8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 static const int dy8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+#define QUIET 0
+#define MESSAGE 1
+#define VERBOSE 2
+#define DEBUG MESSAGE
 
 struct pos/*{{{*/
 {
@@ -23,6 +27,7 @@ struct pos/*{{{*/
   pos(int i, int j) : x(i), y(j) {}
   bool operator==(const pos& p) const { return x == p.x && y == p.y; }
   bool operator!=(const pos& p) const { return !(*this == p); }
+  bool operator<(const pos &p) const { return y != p.y ? y < p.y : x < p.x; }
 };
 ostream& operator<<(ostream& os, const pos& p)
 {
@@ -108,7 +113,7 @@ struct grid/*{{{*/
   int H, W;
   pos robot;
   vector<string> v;
-  boost::unordered_set<pos> cells_to_update;
+  set<pos> cells_to_update;
   pos lambda_lift;
   bool winning, losing;
   int collected_lambda, total_lambda;
@@ -165,6 +170,10 @@ struct grid/*{{{*/
         } else if (v[i][j] == 'W') {
           add_change_cell(pos(j, i));
         }
+
+        if (is_rock_like(v[i][j])) {
+          add_change_cell(pos(j, i));
+        }
       }
     }
     for (vector<pair<char,char> >::const_iterator it = trampoline_spec.begin(); it != trampoline_spec.end(); ++it) {
@@ -211,6 +220,8 @@ struct grid/*{{{*/
         if (cnt == 0) {
           return NO_DIFFERENCE;
         } else {
+          water_rise();
+          update();
           return 0;
         }
       }
@@ -326,13 +337,13 @@ struct grid/*{{{*/
       beard_growth = true;
     }
 
-    boost::unordered_set<pos> old_cells_to_update;
+    set<pos> old_cells_to_update;
     old_cells_to_update.swap(cells_to_update);
     cells_to_update.clear();
     vector<string> old(v);
     bool lambda_exists = (collected_lambda < total_lambda);
     int cnt = 0;
-    for(boost::unordered_set<pos>::const_iterator pos_it = old_cells_to_update.begin(); pos_it != old_cells_to_update.end(); ++pos_it) {
+    for(set<pos>::const_iterator pos_it = old_cells_to_update.begin(); pos_it != old_cells_to_update.end(); ++pos_it) {
       const int x = pos_it->x;
       const int y = pos_it->y;
       /*
@@ -348,9 +359,6 @@ struct grid/*{{{*/
           xx = x;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x, y-2)) {
-            losing = true;
-          }
         } else if ((is_rock_like(old[y-1][x]) || old[y-1][x] == '\\')
             && empty(old[y][x+1], pos(x+1, y))
             && empty(old[y-1][x+1], pos(x+1, y-1))) {
@@ -358,9 +366,6 @@ struct grid/*{{{*/
           xx = x+1;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x+1, y-2)) {
-            losing = true;
-          }
         } else if (is_rock_like(old[y-1][x])
             && empty(old[y][x-1], pos(x-1, y))
             && empty(old[y-1][x-1], pos(x-1, y-1))) {
@@ -368,14 +373,12 @@ struct grid/*{{{*/
           xx = x-1;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x-1, y-2)) {
-            losing = true;
-          }
         }
         if (xx != -1 && yy != -1) {
-          v[yy][xx] = old[y][x];
-          if (v[yy][xx] == '@' && !empty(old[yy-1][xx], pos(xx, yy-1))) {
+          if (v[yy][xx] == '@' && !empty(old[yy+1][xx], pos(xx, yy-1))) {
             v[yy][xx] = '\\';
+          } else {
+            v[yy][xx] = old[y][x];
           }
           add_change_cell(pos(x, y));
           add_change_cell(pos(xx, yy));
@@ -398,6 +401,11 @@ struct grid/*{{{*/
     }
     if (!lambda_exists) {
       v[lambda_lift.y][lambda_lift.x] = 'O';
+    }
+    // 上に岩かλ(Higher order rockが壊れた場合)が落ちてきたら死ぬ．
+    if((old[robot.y+1][robot.x] == ' ')
+        && (v[robot.y+1][robot.x] == '*' || v[robot.y+1][robot.x] == '\\')) {
+      losing = true;
     }
 
     if (robot.y <= water) {
@@ -523,6 +531,10 @@ struct best_keeper/*{{{*/
     if(grid_score > score) {
       score = grid_score;
       sequence = seq;
+#if DEBUG >= MESSAGE
+      cout << "Score: " << score << endl;
+      cout << sequence << endl;
+#endif
     }
   } /*}}}*/
 } global_best;/*}}}*/
@@ -554,23 +566,6 @@ result dfs(const grid& gr, int depth)/*{{{*/
       r = max(r, result(t - 1 + u.score, m));
     }
   }
-  if (r.score == 0) {
-    int a = INF;
-    for (int i = 0; i < ABORT; i++) {
-      const move_type m = static_cast<move_type>(i);
-      g = gr;
-      const int t = g.move(m);
-      if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
-        continue;
-      }
-      //const int e = g.heuristic();
-      const int e = g.estimate();
-      if (e < a) {
-        a = e;
-        r = result(0, m);
-      }
-    }
-  }
   memo.insert(make_pair(gr.key(depth), r));
   return r;
 }/*}}}*/
@@ -583,14 +578,37 @@ void solve(grid gr, int max_depth)/*{{{*/
   int last_total = 0;
   while (true) {
     if (gr.winning) {
+#if DEBUG >= VERBOSE
       cout << "winning" << endl;
+#endif
       break;
     } else if (gr.losing) {
+#if DEBUG >= VERBOSE
       cout << "losing" << endl;
+#endif
       break;
     }
-    const result r = dfs(gr, max_depth);
+    result r = dfs(gr, max_depth);
+    if (r.score == 0) {
+      int a = INF;
+      for (int i = 0; i < ABORT; i++) {
+        const move_type m = static_cast<move_type>(i);
+        grid g = gr;
+        const int t = g.move(m);
+        if (t == INVALID_MOVE || t == NO_DIFFERENCE || g.losing) {
+          continue;
+        }
+        //const int e = g.heuristic();
+        const int e = g.estimate();
+        if (e < a) {
+          a = e;
+          r = result(0, m);
+        }
+      }
+    }
+#if DEBUG >= VERBOSE
     cout << r << endl;
+#endif
     oss << r.move;
     if (r.move == ABORT) {
       total += 25 * gr.collected_lambda;
@@ -604,14 +622,20 @@ void solve(grid gr, int max_depth)/*{{{*/
       global_best.update(gr, oss.str());
     }
     if (total < DAMEPO) {
+#if DEBUG >= VERBOSE
       cout << "Rollback & Abort" << endl;
       cout << "Total score: " << last_total << endl;
+#endif
       return;
     }
+#if DEBUG >= VERBOSE
     cout << "Current total: " << total << endl;
     gr.show(cout);
+#endif
   }
+#if DEBUG >= VERBOSE
   cout << "Total score: " << total << endl;
+#endif
   return;
 }/*}}}*/
 
@@ -657,7 +681,9 @@ void sigint_handler(int sig)/*{{{*/
 
 void print_answer()
 {
+#if DEBUG >= MESSAGE
   cout << "Final score: " << global_best.score << endl;
+#endif
   cout << global_best.sequence << endl;
   _exit(0);
 }
@@ -685,8 +711,11 @@ int main(int argc, char *argv[])/*{{{*/
   }
   grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
   static const int MAX_DEPTH = 50;
+  //static const int MAX_DEPTH = 6;
   while (max_depth < MAX_DEPTH) {
+#if DEBUG >= MESSAGE
     cout << "Solving with max_depth=" << max_depth << endl;
+#endif
     solve(g, max_depth);
     ++max_depth;
   }
