@@ -442,7 +442,7 @@ struct grid/*{{{*/
         for (int i = 0; i < 4; i++) {
           const int x = p.x + dx[i];
           const int y = p.y + dy[i];
-          if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
+          if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O' || is_trampoline(v[y][x]))
               && dd < dist[y][x]) {
             dist[y][x] = dd;
             q.push(pos(x, y));
