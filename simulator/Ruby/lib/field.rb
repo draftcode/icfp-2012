@@ -102,6 +102,8 @@ class Field
         @robot_y = y
       end
     end
+    raise "No robot!" if @robot_x.nil?
+
     @win = @lose = @aborted = false
     @score = 0
 
