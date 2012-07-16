@@ -149,8 +149,8 @@ class Field
     in_grid?(x, y) && field[y][x] == ROCK
   end
 
-  def lambda?(x, y)
-    in_grid?(x, y) && @field[y][x] == LAMBDA
+  def lambda?(x, y, field=@field)
+    in_grid?(x, y) && field[y][x] == LAMBDA
   end
 
   def wall?(x, y)
@@ -246,9 +246,6 @@ class Field
             end
           end
           if nx && ny
-            if nx == @robot_x && ny == @robot_y-1
-              @lose = true
-            end
             if horock?(x, y) && !empty?(nx, ny+1)
               new_field[ny][nx] = LAMBDA
             else
@@ -269,9 +266,10 @@ class Field
         end
       end
     end
-    #if !rock?(@robot_x, @robot_y-1) && rock?(@robot_x, @robot_y-1, new_field)
-    #  @lose = true
-    #end
+    # 空白だったところに岩が出現するか，λが出現する(λは動かないので，Higher Order Rockが壊れたときしかこれは発生しない)と死
+    if empty?(@robot_x, @robot_y-1) && (rock?(@robot_x, @robot_y-1, new_field)  || lambda?(@robot_x, @robot_y-1, new_field))
+      @lose = true
+    end
     if @hp < 0
       @lose = true
     end

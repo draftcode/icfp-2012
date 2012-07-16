@@ -165,6 +165,10 @@ struct grid/*{{{*/
         } else if (v[i][j] == 'W') {
           add_change_cell(pos(j, i));
         }
+
+        if (is_rock_like(v[i][j])) {
+          add_change_cell(pos(j, i));
+        }
       }
     }
     for (vector<pair<char,char> >::const_iterator it = trampoline_spec.begin(); it != trampoline_spec.end(); ++it) {
@@ -211,6 +215,8 @@ struct grid/*{{{*/
         if (cnt == 0) {
           return NO_DIFFERENCE;
         } else {
+          water_rise();
+          update();
           return 0;
         }
       }
@@ -272,15 +278,20 @@ struct grid/*{{{*/
 
   static bool is_rock_like(char c) { return c == '*' || c == '@'; }
 
-  void jump_from(char t)/*{{{*/
+  trampoline get_trampoline(char t) const/*{{{*/
   {
     trampoline tramp;
     for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
       if (it->mark == t) {
-        tramp = *it;
-        break;
+        return *it;
       }
     }
+    throw "Not a trampoline?: " + t;
+  }/*}}}*/
+
+  void jump_from(char t)/*{{{*/
+  {
+    const trampoline tramp = get_trampoline(t);
     robot = tramp.to;
     for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
       if (it->to == robot) {
@@ -424,14 +435,24 @@ struct grid/*{{{*/
         return dist[p.y][p.x];
       }
       const int d = dist[p.y][p.x];
-      for (int i = 0; i < 4; i++) {
-        const int x = p.x + dx[i];
-        const int y = p.y + dy[i];
+      if (is_trampoline(v[p.y][p.x])) {
+        const trampoline tramp = get_trampoline(v[p.y][p.x]);
+        const pos pp = tramp.to;
+        const int dd = d;
+        if (dd < dist[pp.y][pp.x]) {
+          dist[pp.y][pp.x] = dd;
+          q.push(pp);
+        }
+      } else {
         const int dd = d+1;
-        if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
-            && dd < dist[y][x]) {
-          dist[y][x] = dd;
-          q.push(pos(x, y));
+        for (int i = 0; i < 4; i++) {
+          const int x = p.x + dx[i];
+          const int y = p.y + dy[i];
+          if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O' || is_trampoline(v[y][x]))
+              && dd < dist[y][x]) {
+            dist[y][x] = dd;
+            q.push(pos(x, y));
+          }
         }
       }
     }
