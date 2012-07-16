@@ -256,12 +256,12 @@ struct grid/*{{{*/
 
   bool valid(move_type m)/*{{{*/
   {
-    if (m == LEFT && v[robot.y][robot.x] == '*' && v[robot.y][robot.x-1] == ' ') {
-      v[robot.y][robot.x-1] = '*';
+    if (m == LEFT && is_rock_like(v[robot.y][robot.x]) && v[robot.y][robot.x-1] == ' ') {
+      v[robot.y][robot.x-1] = v[robot.y][robot.x];
       v[robot.y][robot.x] = ' ';
       return true;
-    } else if (m == RIGHT && v[robot.y][robot.x] == '*' && v[robot.y][robot.x+1] == ' ') {
-      v[robot.y][robot.x+1] = '*';
+    } else if (m == RIGHT && is_rock_like(v[robot.y][robot.x]) && v[robot.y][robot.x+1] == ' ') {
+      v[robot.y][robot.x+1] = v[robot.y][robot.x];
       v[robot.y][robot.x] = ' ';
       return true;
     } else if (is_trampoline(v[robot.y][robot.x])) {
@@ -375,7 +375,7 @@ struct grid/*{{{*/
           ++cnt;
         }
         if (xx != -1 && yy != -1) {
-          if (v[yy][xx] == '@' && !empty(old[yy+1][xx], pos(xx, yy-1))) {
+          if (old[y][x] == '@' && !empty(old[yy-1][xx], pos(xx, yy-1))) {
             v[yy][xx] = '\\';
           } else {
             v[yy][xx] = old[y][x];
