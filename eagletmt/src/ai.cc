@@ -611,6 +611,7 @@ void print_answer()
 {
   cout << "Final score: " << global_best.score << endl;
   cout << global_best.sequence << endl;
+  _exit(0);
 }
 
 int main(int argc, char *argv[])/*{{{*/
