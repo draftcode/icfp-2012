@@ -22,8 +22,7 @@ def get_point(commands, map_path):
                           map_path,
                           '--evaluate'],
                          stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+                         stdout=subprocess.PIPE)
     p.stdin.write(commands)
     p.stdin.close()
     while p.poll() is None:
@@ -42,8 +41,7 @@ def get_command(lifter, map_path, timeout=150):
     start_time = time.time()
     p = subprocess.Popen(lifter,
                          stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
+                         stdout=subprocess.PIPE)
     p.stdin.write(open(map_path).read())
     p.stdin.close()
     out = ""
