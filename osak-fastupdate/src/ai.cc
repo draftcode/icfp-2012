@@ -15,6 +15,11 @@ static const int dy[] = {0, 0, -1, 1, 0, 0, 0};
 static const int dx8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 static const int dy8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
+#define QUIET 0
+#define MESSAGE 1
+#define VERBOSE 2
+#define DEBUG MESSAGE
+
 struct pos/*{{{*/
 {
   int x, y;
@@ -526,6 +531,10 @@ struct best_keeper/*{{{*/
     if(grid_score > score) {
       score = grid_score;
       sequence = seq;
+#if DEBUG >= MESSAGE
+      cout << "Score: " << score << endl;
+      cout << sequence << endl;
+#endif
     }
   } /*}}}*/
 } global_best;/*}}}*/
@@ -569,10 +578,14 @@ void solve(grid gr, int max_depth)/*{{{*/
   int last_total = 0;
   while (true) {
     if (gr.winning) {
+#if DEBUG >= VERBOSE
       cout << "winning" << endl;
+#endif
       break;
     } else if (gr.losing) {
+#if DEBUG >= VERBOSE
       cout << "losing" << endl;
+#endif
       break;
     }
     result r = dfs(gr, max_depth);
@@ -593,7 +606,9 @@ void solve(grid gr, int max_depth)/*{{{*/
         }
       }
     }
+#if DEBUG >= VERBOSE
     cout << r << endl;
+#endif
     oss << r.move;
     if (r.move == ABORT) {
       total += 25 * gr.collected_lambda;
@@ -607,14 +622,20 @@ void solve(grid gr, int max_depth)/*{{{*/
       global_best.update(gr, oss.str());
     }
     if (total < DAMEPO) {
+#if DEBUG >= VERBOSE
       cout << "Rollback & Abort" << endl;
       cout << "Total score: " << last_total << endl;
+#endif
       return;
     }
+#if DEBUG >= VERBOSE
     cout << "Current total: " << total << endl;
     gr.show(cout);
+#endif
   }
+#if DEBUG >= VERBOSE
   cout << "Total score: " << total << endl;
+#endif
   return;
 }/*}}}*/
 
@@ -660,7 +681,9 @@ void sigint_handler(int sig)/*{{{*/
 
 void print_answer()
 {
+#if DEBUG >= MESSAGE
   cout << "Final score: " << global_best.score << endl;
+#endif
   cout << global_best.sequence << endl;
   _exit(0);
 }
@@ -690,7 +713,9 @@ int main(int argc, char *argv[])/*{{{*/
   static const int MAX_DEPTH = 50;
   //static const int MAX_DEPTH = 6;
   while (max_depth < MAX_DEPTH) {
+#if DEBUG >= MESSAGE
     cout << "Solving with max_depth=" << max_depth << endl;
+#endif
     solve(g, max_depth);
     ++max_depth;
   }
