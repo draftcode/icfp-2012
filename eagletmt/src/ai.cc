@@ -592,6 +592,7 @@ void print_answer()
 {
   cout << "Final score: " << final_answer.first << endl;
   cout << final_answer.second << endl;
+  _exit(0);
 }
 
 int main(int argc, char *argv[])/*{{{*/
