@@ -165,6 +165,10 @@ struct grid/*{{{*/
         } else if (v[i][j] == 'W') {
           add_change_cell(pos(j, i));
         }
+
+        if (is_rock_like(v[i][j])) {
+          add_change_cell(pos(j, i));
+        }
       }
     }
     for (vector<pair<char,char> >::const_iterator it = trampoline_spec.begin(); it != trampoline_spec.end(); ++it) {
@@ -211,6 +215,8 @@ struct grid/*{{{*/
         if (cnt == 0) {
           return NO_DIFFERENCE;
         } else {
+          water_rise();
+          update();
           return 0;
         }
       }
