@@ -8,7 +8,6 @@
 #include <signal.h>
 #include <cstdlib>
 #include <boost/unordered_map.hpp>
-#include <boost/unordered_set.hpp>
 using namespace std;
 static const int INF = 10000000;
 static const int dx[] = {-1, 1, 0, 0, 0, 0, 0};
@@ -23,6 +22,7 @@ struct pos/*{{{*/
   pos(int i, int j) : x(i), y(j) {}
   bool operator==(const pos& p) const { return x == p.x && y == p.y; }
   bool operator!=(const pos& p) const { return !(*this == p); }
+  bool operator<(const pos &p) const { return y != p.y ? y < p.y : x < p.x; }
 };
 ostream& operator<<(ostream& os, const pos& p)
 {
@@ -108,7 +108,7 @@ struct grid/*{{{*/
   int H, W;
   pos robot;
   vector<string> v;
-  boost::unordered_set<pos> cells_to_update;
+  set<pos> cells_to_update;
   pos lambda_lift;
   bool winning, losing;
   int collected_lambda, total_lambda;
@@ -332,13 +332,13 @@ struct grid/*{{{*/
       beard_growth = true;
     }
 
-    boost::unordered_set<pos> old_cells_to_update;
+    set<pos> old_cells_to_update;
     old_cells_to_update.swap(cells_to_update);
     cells_to_update.clear();
     vector<string> old(v);
     bool lambda_exists = (collected_lambda < total_lambda);
     int cnt = 0;
-    for(boost::unordered_set<pos>::const_iterator pos_it = old_cells_to_update.begin(); pos_it != old_cells_to_update.end(); ++pos_it) {
+    for(set<pos>::const_iterator pos_it = old_cells_to_update.begin(); pos_it != old_cells_to_update.end(); ++pos_it) {
       const int x = pos_it->x;
       const int y = pos_it->y;
       /*
@@ -354,9 +354,6 @@ struct grid/*{{{*/
           xx = x;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x, y-2)) {
-            losing = true;
-          }
         } else if ((is_rock_like(old[y-1][x]) || old[y-1][x] == '\\')
             && empty(old[y][x+1], pos(x+1, y))
             && empty(old[y-1][x+1], pos(x+1, y-1))) {
@@ -364,9 +361,6 @@ struct grid/*{{{*/
           xx = x+1;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x+1, y-2)) {
-            losing = true;
-          }
         } else if (is_rock_like(old[y-1][x])
             && empty(old[y][x-1], pos(x-1, y))
             && empty(old[y-1][x-1], pos(x-1, y-1))) {
@@ -374,14 +368,12 @@ struct grid/*{{{*/
           xx = x-1;
           yy = y-1;
           ++cnt;
-          if (robot == pos(x-1, y-2)) {
-            losing = true;
-          }
         }
         if (xx != -1 && yy != -1) {
-          v[yy][xx] = old[y][x];
-          if (v[yy][xx] == '@' && !empty(old[yy-1][xx], pos(xx, yy-1))) {
+          if (v[yy][xx] == '@' && !empty(old[yy+1][xx], pos(xx, yy-1))) {
             v[yy][xx] = '\\';
+          } else {
+            v[yy][xx] = old[y][x];
           }
           add_change_cell(pos(x, y));
           add_change_cell(pos(xx, yy));
@@ -404,6 +396,11 @@ struct grid/*{{{*/
     }
     if (!lambda_exists) {
       v[lambda_lift.y][lambda_lift.x] = 'O';
+    }
+    // 上に岩かλ(Higher order rockが壊れた場合)が落ちてきたら死ぬ．
+    if((old[robot.y+1][robot.x] == ' ')
+        && (v[robot.y+1][robot.x] == '*' || v[robot.y+1][robot.x] == '\\')) {
+      losing = true;
     }
 
     if (robot.y <= water) {
@@ -691,6 +688,7 @@ int main(int argc, char *argv[])/*{{{*/
   }
   grid g(v, water, flooding, waterproof, trampoline_spec, growth_rate, razors);
   static const int MAX_DEPTH = 50;
+  //static const int MAX_DEPTH = 6;
   while (max_depth < MAX_DEPTH) {
     cout << "Solving with max_depth=" << max_depth << endl;
     solve(g, max_depth);
