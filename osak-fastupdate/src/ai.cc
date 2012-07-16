@@ -272,15 +272,20 @@ struct grid/*{{{*/
 
   static bool is_rock_like(char c) { return c == '*' || c == '@'; }
 
-  void jump_from(char t)/*{{{*/
+  trampoline get_trampoline(char t) const/*{{{*/
   {
     trampoline tramp;
     for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
       if (it->mark == t) {
-        tramp = *it;
-        break;
+        return *it;
       }
     }
+    throw "Not a trampoline?: " + t;
+  }/*}}}*/
+
+  void jump_from(char t)/*{{{*/
+  {
+    const trampoline tramp = get_trampoline(t);
     robot = tramp.to;
     for (vector<trampoline>::const_iterator it = trampolines.begin(); it != trampolines.end(); ++it) {
       if (it->to == robot) {
@@ -424,14 +429,24 @@ struct grid/*{{{*/
         return dist[p.y][p.x];
       }
       const int d = dist[p.y][p.x];
-      for (int i = 0; i < 4; i++) {
-        const int x = p.x + dx[i];
-        const int y = p.y + dy[i];
+      if (is_trampoline(v[p.y][p.x])) {
+        const trampoline tramp = get_trampoline(v[p.y][p.x]);
+        const pos pp = tramp.to;
+        const int dd = d;
+        if (dd < dist[pp.y][pp.x]) {
+          dist[pp.y][pp.x] = dd;
+          q.push(pp);
+        }
+      } else {
         const int dd = d+1;
-        if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
-            && dd < dist[y][x]) {
-          dist[y][x] = dd;
-          q.push(pos(x, y));
+        for (int i = 0; i < 4; i++) {
+          const int x = p.x + dx[i];
+          const int y = p.y + dy[i];
+          if ((v[y][x] == ' ' || v[y][x] == '.' || v[y][x] == '\\' || v[y][x] == 'O')
+              && dd < dist[y][x]) {
+            dist[y][x] = dd;
+            q.push(pos(x, y));
+          }
         }
       }
     }
