@@ -458,6 +458,29 @@ struct grid/*{{{*/
   }/*}}}*/
 };/*}}}*/
 
+struct best_keeper/*{{{*/
+{
+  string sequence;
+  int score;
+
+  best_keeper() : sequence("A"), score(0) {}
+  void update(const grid &g, const string &seq)/*{{{*/
+  {
+    int grid_score = g.collected_lambda * 25 - seq.size();
+    if(g.winning) {
+      grid_score += g.collected_lambda * 50;
+    } else if(g.losing) {
+    } else {
+      // ここでAbortするものとして点数計算する．
+      grid_score += g.collected_lambda * 25;
+    }
+    if(grid_score > score) {
+      score = grid_score;
+      sequence = seq;
+    }
+  } /*}}}*/
+} global_best;/*}}}*/
+
 result dfs(const grid& gr, int depth)/*{{{*/
 {
   result r = result::end();
@@ -506,12 +529,11 @@ result dfs(const grid& gr, int depth)/*{{{*/
   return r;
 }/*}}}*/
 
-pair<int, string> solve(grid gr, int max_depth)/*{{{*/
+void solve(grid gr, int max_depth)/*{{{*/
 {
   static const int DAMEPO = -1000;
   int total = 0;
   ostringstream oss;
-  string last_lambda;
   int last_total = 0;
   while (true) {
     if (gr.winning) {
@@ -529,22 +551,20 @@ pair<int, string> solve(grid gr, int max_depth)/*{{{*/
       break;
     }
     const int t = gr.move(r.move);
-    --total;
-    total += t;
     if (t > 0) {
-      last_lambda = oss.str();
       last_total = total + 25 * gr.collected_lambda;
+      global_best.update(gr, oss.str());
     }
     if (total < DAMEPO) {
       cout << "Rollback & Abort" << endl;
       cout << "Total score: " << last_total << endl;
-      return make_pair(last_total, last_lambda + "A");
+      return;
     }
     cout << "Current total: " << total << endl;
     gr.show(cout);
   }
   cout << "Total score: " << total << endl;
-  return make_pair(total, oss.str() + "A");
+  return;
 }/*}}}*/
 
 void readlines(vector<string>& v, int& water, int& flooding, int& waterproof, vector<pair<char,char> >& trampoline_spec, int& growth_rate, int& razors, istream& is)/*{{{*/
@@ -587,11 +607,10 @@ void sigint_handler(int sig)/*{{{*/
   exit(0);
 }/*}}}*/
 
-pair<int,string> final_answer(0, "A");
 void print_answer()
 {
-  cout << "Final score: " << final_answer.first << endl;
-  cout << final_answer.second << endl;
+  cout << "Final score: " << global_best.score << endl;
+  cout << global_best.sequence << endl;
 }
 
 int main(int argc, char *argv[])/*{{{*/
@@ -619,10 +638,7 @@ int main(int argc, char *argv[])/*{{{*/
   static const int MAX_DEPTH = 50;
   while (max_depth < MAX_DEPTH) {
     cout << "Solving with max_depth=" << max_depth << endl;
-    const pair<int,string> r = solve(g, max_depth);
-    if (final_answer.first < r.first) {
-      final_answer = r;
-    }
+    solve(g, max_depth);
     ++max_depth;
   }
   return 0;
