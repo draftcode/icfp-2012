@@ -215,6 +215,8 @@ struct grid/*{{{*/
         if (cnt == 0) {
           return NO_DIFFERENCE;
         } else {
+          water_rise();
+          update();
           return 0;
         }
       }
