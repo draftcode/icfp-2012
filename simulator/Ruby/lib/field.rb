@@ -246,7 +246,7 @@ class Field
             end
           end
           if nx && ny
-            if horock?(x, y) && !empty?(x, y+1)
+            if horock?(x, y) && !empty?(nx, ny+1)
               new_field[ny][nx] = LAMBDA
             else
               new_field[ny][nx] = @field[y][x]
